@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>한누리 유럽 거점 최적화 최종</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@600;700&display=swap">
+<style>
+/* Layout: 상단 결론 헤더 → 탭 → 한 열 분석 본문. 동박(copper) 강조색, 흑연(graphite) 중성색, 숫자는 고정폭. */
+:root {
+  --bg: #f2f4f5; --surface: #ffffff; --sunken: #e8ecee; --line: #d3dadd; --fg: #182127; --muted: #57656d;
+  --accent: #a9531f; --accent-soft: #f3e2d6; --s2: #2c6b79; --s3: #7d8a92;
+  --pos: #1d7447; --neg: #b02a20; --warn: #8a6100;
+  --f-display: "Noto Serif KR", "Nanum Myeongjo", serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10161a; --surface: #172026; --sunken: #1d282f; --line: #2b3840; --fg: #e4eaed; --muted: #98a6ae;
+  --accent: #e08c58; --accent-soft: #3a2a20; --s2: #6db1c1; --s3: #8e9ba3; --pos: #5cbf88; --neg: #ef7b70; --warn: #ddb44c; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #10161a; --surface: #172026; --sunken: #1d282f; --line: #2b3840; --fg: #e4eaed; --muted: #98a6ae;
+  --accent: #e08c58; --accent-soft: #3a2a20; --s2: #6db1c1; --s3: #8e9ba3; --pos: #5cbf88; --neg: #ef7b70; --warn: #ddb44c; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14.5px; line-height: 1.6; margin: 0; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(1.45rem, 3.2vw, 2.05rem); line-height: 1.3; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 1.22rem; line-height: 1.4; }
+h3 { font-size: 1rem; font-weight: 600; }
+p { margin: 0; max-width: 72ch; }
+.eyebrow { font-family: var(--f-data); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+.small { font-size: 0.86rem; }
+.num, td.n, th.n { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+a { color: var(--accent); }
+
+.top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; padding-bottom: 16px; border-bottom: 2px solid var(--fg); }
+.top .brand { display: grid; gap: 6px; min-width: 0; }
+.status { display: inline-flex; align-items: center; gap: 8px; font-family: var(--f-data); font-size: 0.8rem; color: var(--muted); }
+.status .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--warn); }
+.status.ok .dot { background: var(--pos); }
+.status.err .dot { background: var(--neg); }
+.progress { height: 3px; background: var(--sunken); margin-top: 8px; }
+.progress > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+
+.tabs { display: flex; gap: 2px; overflow-x: auto; margin: 14px 0 22px; border-bottom: 1px solid var(--line); }
+.tabs button { font: inherit; font-size: 0.92rem; background: none; border: 0; border-bottom: 3px solid transparent; color: var(--muted); padding: 9px 13px; cursor: pointer; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+.tabs button:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.stack { display: grid; gap: 22px; }
+.section { display: grid; gap: 12px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; display: grid; gap: 10px; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+
+.answer { display: grid; grid-template-columns: 2.6rem 1fr; gap: 4px 14px; padding: 14px 0; border-top: 1px solid var(--line); }
+.answer:first-child { border-top: 0; }
+.answer .k { font-family: var(--f-data); font-size: 0.8rem; color: var(--accent); padding-top: 3px; }
+.answer h3 { margin-bottom: 4px; }
+.answer ul { margin: 6px 0 0; padding-left: 1.1rem; display: grid; gap: 3px; }
+
+.verdict { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 0 var(--r) var(--r) 0; display: grid; gap: 6px; }
+.verdict strong { font-size: 1.08rem; }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 2px; }
+.kpi .v { font-family: var(--f-data); font-size: 1.3rem; font-weight: 500; }
+.kpi .l { font-size: 0.8rem; color: var(--muted); }
+
+.tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { background: var(--sunken); font-weight: 600; font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+td.n, th.n { text-align: right; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+tr.hl td { background: var(--accent-soft); }
+.cell-pos { color: var(--pos); }
+.cell-neg { color: var(--neg); }
+td.heat { position: relative; }
+.rule { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.chip.pos { color: var(--pos); } .chip.neg { color: var(--neg); } .chip.warn { color: var(--warn); } .chip.acc { color: var(--accent); }
+
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px 20px; }
+fieldset { border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; margin: 0; display: grid; gap: 6px; min-width: 0; }
+legend { font-size: 0.8rem; font-weight: 600; color: var(--muted); padding: 0 4px; }
+label { display: flex; align-items: center; gap: 7px; font-size: 0.9rem; }
+input[type="number"], select { font: inherit; font-family: var(--f-data); font-size: 0.88rem; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; }
+input[type="number"] { width: 5.2rem; }
+.probs { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 6px 10px; }
+.probs label { justify-content: space-between; }
+button.btn { font: inherit; font-weight: 600; font-size: 0.9rem; border-radius: 4px; padding: 8px 16px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--surface); }
+button.btn.ghost { background: transparent; color: var(--accent); }
+button.btn:disabled { opacity: .5; cursor: wait; }
+.row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+
+.note { font-size: 0.84rem; color: var(--muted); border-left: 2px solid var(--line); padding-left: 10px; max-width: 80ch; }
+.note.warn { border-left-color: var(--warn); }
+.finding { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.finding:first-child { border-top: 0; }
+.finding p { max-width: 90ch; }
+
+svg text { fill: var(--muted); font-family: var(--f-data); font-size: 11px; }
+svg .axis { stroke: var(--line); }
+svg .zero { stroke: var(--fg); stroke-width: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.82rem; color: var(--muted); }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+footer { margin-top: 36px; padding-top: 12px; border-top: 1px solid var(--line); font-family: var(--f-data); font-size: 0.75rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+pre.formula { font-family: var(--f-data); font-size: 0.82rem; background: var(--sunken); padding: 12px 14px; border-radius: var(--r); overflow-x: auto; margin: 0; line-height: 1.55; }
+@media (max-width: 560px) { .answer { grid-template-columns: 1fr; } th, td { padding: 6px 8px; } }
+@media (prefers-reduced-motion: reduce) { .progress > i { transition: none; } }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">Hanuri Energy Solution · 유럽 생산거점 의사결정 · 2026–2045</span>
+      <h1>지금 지을 것인가, 알고 나서 지을 것인가</h1>
+      <p class="small muted">사례 자료 6~14와 원자료 Excel만으로 계산합니다. 사례의 다섯 미래에 수요 가속(분석 확장)을 더해 여섯 미래를 봅니다. 금액은 USD million, 2026년 가치, WACC 9%입니다.</p>
+    </div>
+    <div>
+      <div class="status" id="status"><span class="dot"></span><span id="status-text">계산 준비 중</span></div>
+      <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="분석 화면"></nav>
+  <main id="view" aria-live="polite"></main>
+  <footer><span id="meta"></span><span>교차검증: tools/cross_check.py (Python + HiGHS)</span></footer>
+</div>
+<script>
+/* 자동 생성: tools/extract_data.py. 직접 수정하지 마세요. */
+var HANURI_DATA = {"meta":{"sourceFile":"battery_supply_chain(SIMPLE).xlsx","sha256":"5b0f7bd1ea711f1f9232b37093006d45f03bb17824deb90597f65f0b0be1860a","fingerprint":"5b0f7bd1ea71","extractedAt":"2026-10-20T10:53:35+00:00","rows":{"Demand_Nodes":21,"Factories":10,"Transport_Params":4,"Factory_Demand_Lanes":210,"Annual_Assumptions":20},"errors":[]},"factories":[{"id":"F_KR_LGES_OCHANG","ko":"오창","name":"Korea cell hub - Ochang","status":"existing","lat":36.637,"lon":127.43,"cap0":35,"cap":35,"capex":0,"proc":22,"elec":0.11,"grid":0.43,"re":0.3,"fixed":420,"yield":0.95,"emb":57.28},{"id":"F_EU_PL_LGES_WROCLAW","ko":"브로츠와프","name":"LGES Wrocław / Biskupice Podgórne","status":"existing","lat":50.99,"lon":16.89,"cap0":86,"cap":90,"capex":0,"proc":25.5,"elec":0.15,"grid":0.55,"re":0.8,"fixed":650,"yield":0.93,"emb":50.04},{"id":"F_EU_PL_WROCLAW_EXP","ko":"브로츠와프 증설","name":"Wrocław Expansion Candidate","status":"candidate","lat":50.99,"lon":16.89,"cap0":0,"cap":30,"capex":2800,"proc":24.8,"elec":0.15,"grid":0.55,"re":0.85,"fixed":220,"yield":0.92,"emb":48.98},{"id":"F_EU_HU_DEBRECEN","ko":"데브레첸","name":"Hungary East Cluster Candidate","status":"candidate","lat":47.5316,"lon":21.6273,"cap0":0,"cap":40,"capex":3800,"proc":23.5,"elec":0.14,"grid":0.2,"re":0.55,"fixed":260,"yield":0.92,"emb":49.04},{"id":"F_EU_DE_BRANDENBURG","ko":"브란덴부르크","name":"Germany Brandenburg Candidate","status":"candidate","lat":52.4,"lon":13.8,"cap0":0,"cap":40,"capex":4600,"proc":27,"elec":0.19,"grid":0.33,"re":0.6,"fixed":320,"yield":0.93,"emb":50.76},{"id":"F_EU_FR_DOUVRIN","ko":"두브랭","name":"France Hauts-de-France Candidate","status":"candidate","lat":50.51,"lon":2.83,"cap0":0,"cap":35,"capex":3900,"proc":26.5,"elec":0.17,"grid":0.06,"re":0.65,"fixed":285,"yield":0.93,"emb":46.36},{"id":"F_EU_ES_ZARAGOZA","ko":"사라고사","name":"Spain Zaragoza Candidate","status":"candidate","lat":41.653,"lon":-0.878,"cap0":0,"cap":35,"capex":3400,"proc":24.2,"elec":0.13,"grid":0.14,"re":0.6,"fixed":240,"yield":0.92,"emb":47.72},{"id":"F_EU_SE_SKELLEFTEA","ko":"셸레프테오","name":"Sweden North Battery Candidate","status":"candidate","lat":64.75,"lon":20.95,"cap0":0,"cap":30,"capex":4200,"proc":28,"elec":0.1,"grid":0.02,"re":0.85,"fixed":270,"yield":0.91,"emb":45.8},{"id":"F_EU_PT_SINES","ko":"시네스","name":"Portugal Atlantic Candidate","status":"candidate","lat":37.95,"lon":-8.87,"cap0":0,"cap":25,"capex":3100,"proc":24,"elec":0.13,"grid":0.1,"re":0.65,"fixed":200,"yield":0.9,"emb":46.92},{"id":"F_EU_CZ_OSTRAVA","ko":"오스트라바","name":"Czechia Ostrava Candidate","status":"candidate","lat":49.82,"lon":18.26,"cap0":0,"cap":30,"capex":3200,"proc":23.8,"elec":0.14,"grid":0.36,"re":0.5,"fixed":220,"yield":0.91,"emb":52.6}],"demands":[{"id":"D_EU_DE_VW_WOLFSBURG","name":"Volkswagen Wolfsburg","group":"VW Group","lat":52.4227,"lon":10.7865,"d0":18,"g1":0.07,"g2":0.035,"p0":116},{"id":"D_EU_DE_BMW_MUNICH","name":"BMW Munich","group":"BMW Group","lat":48.1767,"lon":11.556,"d0":12,"g1":0.065,"g2":0.033,"p0":118},{"id":"D_EU_DE_MERCEDES_SINDELFINGEN","name":"Mercedes-Benz Sindelfingen","group":"Mercedes-Benz","lat":48.7075,"lon":9.0044,"d0":10,"g1":0.06,"g2":0.03,"p0":123},{"id":"D_EU_DE_TESLA_GRUENHEIDE","name":"Tesla Gigafactory Berlin-Brandenburg","group":"Tesla","lat":52.398,"lon":13.796,"d0":20,"g1":0.075,"g2":0.04,"p0":113},{"id":"D_EU_FR_RENAULT_DOUAI","name":"Renault ElectriCity Douai","group":"Renault Group","lat":50.37,"lon":3.08,"d0":9,"g1":0.07,"g2":0.035,"p0":110},{"id":"D_EU_FR_STELLANTIS_MULHOUSE","name":"Stellantis Mulhouse","group":"Stellantis","lat":47.755,"lon":7.335,"d0":12,"g1":0.075,"g2":0.038,"p0":110},{"id":"D_EU_ES_STELLANTIS_ZARAGOZA","name":"Stellantis Zaragoza","group":"Stellantis","lat":41.653,"lon":-0.878,"d0":10,"g1":0.07,"g2":0.035,"p0":108},{"id":"D_EU_IT_STELLANTIS_MIRAFIORI","name":"Stellantis Mirafiori","group":"Stellantis","lat":45.031,"lon":7.623,"d0":6,"g1":0.055,"g2":0.028,"p0":108},{"id":"D_EU_SE_VOLVO_GOTHENBURG","name":"Volvo Cars Torslanda","group":"Volvo Cars","lat":57.7089,"lon":11.9746,"d0":8,"g1":0.065,"g2":0.033,"p0":120},{"id":"D_EU_CZ_HYUNDAI_NOSOVICE","name":"Hyundai Motor Manufacturing Czech","group":"Hyundai Motor Group","lat":49.66,"lon":18.43,"d0":6,"g1":0.06,"g2":0.03,"p0":106},{"id":"D_EU_SK_KIA_ZILINA","name":"Kia Slovakia","group":"Hyundai Motor Group","lat":49.223,"lon":18.74,"d0":7,"g1":0.06,"g2":0.03,"p0":106},{"id":"D_EU_BE_VOLVO_GHENT","name":"Volvo Cars Ghent","group":"Volvo Cars","lat":51.05,"lon":3.73,"d0":5,"g1":0.06,"g2":0.03,"p0":112},{"id":"D_AS_KR_HYUNDAI_ULSAN","name":"Hyundai Motor Ulsan","group":"Hyundai Motor Group","lat":35.5384,"lon":129.3114,"d0":12,"g1":0.055,"g2":0.028,"p0":108},{"id":"D_AS_JP_TOYOTA_CITY","name":"Toyota Motor Motomachi/Toyota City","group":"Toyota","lat":35.0833,"lon":137.1563,"d0":10,"g1":0.045,"g2":0.025,"p0":110},{"id":"D_AS_CN_BYD_SHENZHEN","name":"BYD Shenzhen","group":"BYD","lat":22.5431,"lon":114.0579,"d0":25,"g1":0.05,"g2":0.025,"p0":96},{"id":"D_AS_IN_MARUTI_MANESAR","name":"Maruti Suzuki Manesar","group":"Suzuki/Maruti","lat":28.351,"lon":76.94,"d0":6,"g1":0.08,"g2":0.045,"p0":98},{"id":"D_ME_TR_TOGG_GEMLIK","name":"Togg Gemlik","group":"Togg","lat":40.43,"lon":29.16,"d0":4,"g1":0.085,"g2":0.045,"p0":105},{"id":"D_ME_SA_LUCID_KAEC","name":"Lucid AMP-2 KAEC","group":"Lucid","lat":22.405,"lon":39.081,"d0":3,"g1":0.09,"g2":0.05,"p0":125},{"id":"D_SA_BR_STELLANTIS_BETIM","name":"Stellantis Betim","group":"Stellantis","lat":-19.967,"lon":-44.198,"d0":4,"g1":0.095,"g2":0.055,"p0":102},{"id":"D_SA_BR_VOLKSWAGEN_ABC","name":"Volkswagen Anchieta","group":"VW Group","lat":-23.693,"lon":-46.565,"d0":3.5,"g1":0.09,"g2":0.052,"p0":102},{"id":"D_SA_AR_TOYOTA_ZARATE","name":"Toyota Zárate","group":"Toyota","lat":-34.095,"lon":-59.035,"d0":2.5,"g1":0.09,"g2":0.052,"p0":102}],"lanes":[["F_KR_LGES_OCHANG","D_EU_DE_VW_WOLFSBURG","ocean",11305.9,4.005,0.735,25.8,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_DE_BMW_MUNICH","ocean",11680,4.078,0.759,26.5,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_DE_MERCEDES_SINDELFINGEN","ocean",11810.8,4.103,0.768,26.7,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_DE_TESLA_GRUENHEIDE","ocean",11100.7,3.965,0.722,25.5,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_FR_RENAULT_DOUAI","ocean",12033.8,4.147,0.782,27.1,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_FR_STELLANTIS_MULHOUSE","ocean",12030.1,4.146,0.782,27.1,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_ES_STELLANTIS_ZARAGOZA","ocean",13295.6,4.393,0.864,29.2,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_IT_STELLANTIS_MIRAFIORI","ocean",12299.5,4.198,0.799,27.5,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_SE_VOLVO_GOTHENBURG","ocean",10706.8,3.888,0.696,24.8,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_CZ_HYUNDAI_NOSOVICE","ocean",11017.9,3.948,0.716,25.4,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_SK_KIA_ZILINA","ocean",11033.9,3.952,0.717,25.4,0.013000000000000001],["F_KR_LGES_OCHANG","D_EU_BE_VOLVO_GHENT","ocean",11916.8,4.124,0.775,26.9,0.013000000000000001],["F_KR_LGES_OCHANG","D_AS_KR_HYUNDAI_ULSAN","road",250.3,0.577,0.101,1.5,0.0],["F_KR_LGES_OCHANG","D_AS_JP_TOYOTA_CITY","short_sea",1250.1,1.288,0.146,5.8,0.0],["F_KR_LGES_OCHANG","D_AS_CN_BYD_SHENZHEN","short_sea",2838,1.907,0.332,9.3,0.0],["F_KR_LGES_OCHANG","D_AS_IN_MARUTI_MANESAR","short_sea",6676.8,3.404,0.781,17.8,0.0],["F_KR_LGES_OCHANG","D_ME_TR_TOGG_GEMLIK","ocean",10897.3,3.925,0.708,25.2,0.03],["F_KR_LGES_OCHANG","D_ME_SA_LUCID_KAEC","ocean",11347.4,4.013,0.738,25.9,0.03],["F_KR_LGES_OCHANG","D_SA_BR_STELLANTIS_BETIM","ocean",24287.3,6.536,1.579,47.5,0.05],["F_KR_LGES_OCHANG","D_SA_BR_VOLKSWAGEN_ABC","ocean",24928.1,6.661,1.62,48.5,0.05],["F_KR_LGES_OCHANG","D_SA_AR_TOYOTA_ZARATE","ocean",26142,6.898,1.699,50.6,0.05],["F_EU_PL_LGES_WROCLAW","D_EU_DE_VW_WOLFSBURG","road",561.9,0.921,0.226,2.1,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_DE_BMW_MUNICH","road",619.4,0.984,0.25,2.2,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_DE_MERCEDES_SINDELFINGEN","road",774.2,1.155,0.312,2.5,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_DE_TESLA_GRUENHEIDE","road",330.6,0.665,0.133,1.7,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_FR_RENAULT_DOUAI","rail_road",1266.3,1.191,0.247,3.7,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_FR_STELLANTIS_MULHOUSE","road",973.7,1.376,0.392,2.9,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_ES_STELLANTIS_ZARAGOZA","rail_road",2219.2,1.748,0.433,5,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_IT_STELLANTIS_MIRAFIORI","rail_road",1241.3,1.176,0.242,3.7,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_SE_VOLVO_GOTHENBURG","road",1014.6,1.421,0.409,3,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_CZ_HYUNDAI_NOSOVICE","road",229.9,0.554,0.093,1.5,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_SK_KIA_ZILINA","road",295.8,0.627,0.119,1.6,0.0],["F_EU_PL_LGES_WROCLAW","D_EU_BE_VOLVO_GHENT","rail_road",1195.1,1.149,0.233,3.6,0.0],["F_EU_PL_LGES_WROCLAW","D_AS_KR_HYUNDAI_ULSAN","ocean",11281,4,0.733,25.8,0.02],["F_EU_PL_LGES_WROCLAW","D_AS_JP_TOYOTA_CITY","ocean",11892.3,4.119,0.773,26.8,0.02],["F_EU_PL_LGES_WROCLAW","D_AS_CN_BYD_SHENZHEN","ocean",11555.1,4.053,0.751,26.3,0.02],["F_EU_PL_LGES_WROCLAW","D_AS_IN_MARUTI_MANESAR","ocean",7474.6,3.258,0.486,19.5,0.02],["F_EU_PL_LGES_WROCLAW","D_ME_TR_TOGG_GEMLIK","road",2035.8,2.55,0.82,5.1,0.02],["F_EU_PL_LGES_WROCLAW","D_ME_SA_LUCID_KAEC","short_sea",5011.3,2.754,0.586,14.1,0.02],["F_EU_PL_LGES_WROCLAW","D_SA_BR_STELLANTIS_BETIM","ocean",13332.3,4.4,0.867,29.2,0.02],["F_EU_PL_LGES_WROCLAW","D_SA_BR_VOLKSWAGEN_ABC","ocean",13980.4,4.526,0.909,30.3,0.02],["F_EU_PL_LGES_WROCLAW","D_SA_AR_TOYOTA_ZARATE","ocean",16210.4,4.961,1.054,34,0.02],["F_EU_PL_WROCLAW_EXP","D_EU_DE_VW_WOLFSBURG","road",561.9,0.921,0.226,2.1,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_DE_BMW_MUNICH","road",619.4,0.984,0.25,2.2,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_DE_MERCEDES_SINDELFINGEN","road",774.2,1.155,0.312,2.5,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_DE_TESLA_GRUENHEIDE","road",330.6,0.665,0.133,1.7,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_FR_RENAULT_DOUAI","rail_road",1266.3,1.191,0.247,3.7,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_FR_STELLANTIS_MULHOUSE","road",973.7,1.376,0.392,2.9,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_ES_STELLANTIS_ZARAGOZA","rail_road",2219.2,1.748,0.433,5,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_IT_STELLANTIS_MIRAFIORI","rail_road",1241.3,1.176,0.242,3.7,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_SE_VOLVO_GOTHENBURG","road",1014.6,1.421,0.409,3,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_CZ_HYUNDAI_NOSOVICE","road",229.9,0.554,0.093,1.5,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_SK_KIA_ZILINA","road",295.8,0.627,0.119,1.6,0.0],["F_EU_PL_WROCLAW_EXP","D_EU_BE_VOLVO_GHENT","rail_road",1195.1,1.149,0.233,3.6,0.0],["F_EU_PL_WROCLAW_EXP","D_AS_KR_HYUNDAI_ULSAN","ocean",11281,4,0.733,25.8,0.02],["F_EU_PL_WROCLAW_EXP","D_AS_JP_TOYOTA_CITY","ocean",11892.3,4.119,0.773,26.8,0.02],["F_EU_PL_WROCLAW_EXP","D_AS_CN_BYD_SHENZHEN","ocean",11555.1,4.053,0.751,26.3,0.02],["F_EU_PL_WROCLAW_EXP","D_AS_IN_MARUTI_MANESAR","ocean",7474.6,3.258,0.486,19.5,0.02],["F_EU_PL_WROCLAW_EXP","D_ME_TR_TOGG_GEMLIK","road",2035.8,2.55,0.82,5.1,0.02],["F_EU_PL_WROCLAW_EXP","D_ME_SA_LUCID_KAEC","short_sea",5011.3,2.754,0.586,14.1,0.02],["F_EU_PL_WROCLAW_EXP","D_SA_BR_STELLANTIS_BETIM","ocean",13332.3,4.4,0.867,29.2,0.02],["F_EU_PL_WROCLAW_EXP","D_SA_BR_VOLKSWAGEN_ABC","ocean",13980.4,4.526,0.909,30.3,0.02],["F_EU_PL_WROCLAW_EXP","D_SA_AR_TOYOTA_ZARATE","ocean",16210.4,4.961,1.054,34,0.02],["F_EU_HU_DEBRECEN","D_EU_DE_VW_WOLFSBURG","rail_road",1229,1.169,0.24,3.6,0.0],["F_EU_HU_DEBRECEN","D_EU_DE_BMW_MUNICH","road",942.9,1.342,0.38,2.9,0.0],["F_EU_HU_DEBRECEN","D_EU_DE_MERCEDES_SINDELFINGEN","rail_road",1228.5,1.169,0.24,3.6,0.0],["F_EU_HU_DEBRECEN","D_EU_DE_TESLA_GRUENHEIDE","road",972.5,1.375,0.392,2.9,0.0],["F_EU_HU_DEBRECEN","D_EU_FR_RENAULT_DOUAI","rail_road",1802.7,1.505,0.352,4.4,0.0],["F_EU_HU_DEBRECEN","D_EU_FR_STELLANTIS_MULHOUSE","rail_road",1390.4,1.263,0.271,3.9,0.0],["F_EU_HU_DEBRECEN","D_EU_ES_STELLANTIS_ZARAGOZA","rail_road",2456.9,1.887,0.479,5.3,0.0],["F_EU_HU_DEBRECEN","D_EU_IT_STELLANTIS_MIRAFIORI","rail_road",1442.8,1.294,0.281,3.9,0.0],["F_EU_HU_DEBRECEN","D_EU_SE_VOLVO_GOTHENBURG","rail_road",1693.9,1.441,0.33,4.3,0.0],["F_EU_HU_DEBRECEN","D_EU_CZ_HYUNDAI_NOSOVICE","road",416.9,0.761,0.168,1.8,0.0],["F_EU_HU_DEBRECEN","D_EU_SK_KIA_ZILINA","road",355.4,0.693,0.143,1.7,0.0],["F_EU_HU_DEBRECEN","D_EU_BE_VOLVO_GHENT","rail_road",1757.3,1.478,0.343,4.3,0.0],["F_EU_HU_DEBRECEN","D_AS_KR_HYUNDAI_ULSAN","ocean",11231.4,3.99,0.73,25.7,0.02],["F_EU_HU_DEBRECEN","D_AS_JP_TOYOTA_CITY","ocean",11902.3,4.121,0.774,26.8,0.02],["F_EU_HU_DEBRECEN","D_AS_CN_BYD_SHENZHEN","ocean",11280.4,4,0.733,25.8,0.02],["F_EU_HU_DEBRECEN","D_AS_IN_MARUTI_MANESAR","ocean",6979.2,3.161,0.454,18.6,0.02],["F_EU_HU_DEBRECEN","D_ME_TR_TOGG_GEMLIK","road",1339.7,1.78,0.54,3.7,0.02],["F_EU_HU_DEBRECEN","D_ME_SA_LUCID_KAEC","short_sea",4317.4,2.484,0.505,12.6,0.02],["F_EU_HU_DEBRECEN","D_SA_BR_STELLANTIS_BETIM","ocean",13441.5,4.421,0.874,29.4,0.02],["F_EU_HU_DEBRECEN","D_SA_BR_VOLKSWAGEN_ABC","ocean",14084.5,4.546,0.915,30.5,0.02],["F_EU_HU_DEBRECEN","D_SA_AR_TOYOTA_ZARATE","ocean",16337,4.986,1.062,34.2,0.02],["F_EU_DE_BRANDENBURG","D_EU_DE_VW_WOLFSBURG","road",255.5,0.582,0.103,1.5,0.0],["F_EU_DE_BRANDENBURG","D_EU_DE_BMW_MUNICH","road",619.8,0.985,0.25,2.2,0.0],["F_EU_DE_BRANDENBURG","D_EU_DE_MERCEDES_SINDELFINGEN","road",665.1,1.035,0.268,2.3,0.0],["F_EU_DE_BRANDENBURG","D_EU_DE_TESLA_GRUENHEIDE","road",0.4,0.3,0,1,0.0],["F_EU_DE_BRANDENBURG","D_EU_FR_RENAULT_DOUAI","road",970.7,1.373,0.391,2.9,0.0],["F_EU_DE_BRANDENBURG","D_EU_FR_STELLANTIS_MULHOUSE","road",865,1.256,0.349,2.7,0.0],["F_EU_DE_BRANDENBURG","D_EU_ES_STELLANTIS_ZARAGOZA","rail_road",2114.6,1.687,0.412,4.8,0.0],["F_EU_DE_BRANDENBURG","D_EU_IT_STELLANTIS_MIRAFIORI","rail_road",1216.2,1.161,0.237,3.6,0.0],["F_EU_DE_BRANDENBURG","D_EU_SE_VOLVO_GOTHENBURG","road",752,1.131,0.303,2.5,0.0],["F_EU_DE_BRANDENBURG","D_EU_CZ_HYUNDAI_NOSOVICE","road",555.5,0.914,0.224,2.1,0.0],["F_EU_DE_BRANDENBURG","D_EU_SK_KIA_ZILINA","road",618.8,0.984,0.249,2.2,0.0],["F_EU_DE_BRANDENBURG","D_EU_BE_VOLVO_GHENT","road",886.3,1.279,0.357,2.8,0.0],["F_EU_DE_BRANDENBURG","D_AS_KR_HYUNDAI_ULSAN","ocean",11366.4,4.016,0.739,25.9,0.02],["F_EU_DE_BRANDENBURG","D_AS_JP_TOYOTA_CITY","ocean",11946.1,4.129,0.776,26.9,0.02],["F_EU_DE_BRANDENBURG","D_AS_CN_BYD_SHENZHEN","ocean",11748.5,4.091,0.764,26.6,0.02],["F_EU_DE_BRANDENBURG","D_AS_IN_MARUTI_MANESAR","ocean",7771.1,3.315,0.505,20,0.02],["F_EU_DE_BRANDENBURG","D_ME_TR_TOGG_GEMLIK","road",2389.1,2.94,0.963,5.8,0.02],["F_EU_DE_BRANDENBURG","D_ME_SA_LUCID_KAEC","short_sea",5359.6,2.89,0.627,14.9,0.02],["F_EU_DE_BRANDENBURG","D_SA_BR_STELLANTIS_BETIM","ocean",13223.2,4.379,0.86,29,0.02],["F_EU_DE_BRANDENBURG","D_SA_BR_VOLKSWAGEN_ABC","ocean",13872.4,4.505,0.902,30.1,0.02],["F_EU_DE_BRANDENBURG","D_SA_AR_TOYOTA_ZARATE","ocean",16085.9,4.937,1.046,33.8,0.02],["F_EU_FR_DOUVRIN","D_EU_DE_VW_WOLFSBURG","road",738,1.115,0.297,2.5,0.0],["F_EU_FR_DOUVRIN","D_EU_DE_BMW_MUNICH","road",853.5,1.243,0.344,2.7,0.0],["F_EU_FR_DOUVRIN","D_EU_DE_MERCEDES_SINDELFINGEN","road",609.7,0.974,0.246,2.2,0.0],["F_EU_FR_DOUVRIN","D_EU_DE_TESLA_GRUENHEIDE","road",984.3,1.388,0.397,3,0.0],["F_EU_FR_DOUVRIN","D_EU_FR_RENAULT_DOUAI","road",29.5,0.333,0.012,1.1,0.0],["F_EU_FR_DOUVRIN","D_EU_FR_STELLANTIS_MULHOUSE","road",560.6,0.919,0.226,2.1,0.0],["F_EU_FR_DOUVRIN","D_EU_ES_STELLANTIS_ZARAGOZA","rail_road",1332.8,1.23,0.26,3.8,0.0],["F_EU_FR_DOUVRIN","D_EU_IT_STELLANTIS_MIRAFIORI","road",883,1.276,0.356,2.8,0.0],["F_EU_FR_DOUVRIN","D_EU_SE_VOLVO_GOTHENBURG","rail_road",1295.1,1.208,0.253,3.7,0.0],["F_EU_FR_DOUVRIN","D_EU_CZ_HYUNDAI_NOSOVICE","rail_road",1449.5,1.298,0.283,3.9,0.0],["F_EU_FR_DOUVRIN","D_EU_SK_KIA_ZILINA","rail_road",1491.1,1.322,0.291,4,0.0],["F_EU_FR_DOUVRIN","D_EU_BE_VOLVO_GHENT","road",109,0.42,0.044,1.2,0.0],["F_EU_FR_DOUVRIN","D_AS_KR_HYUNDAI_ULSAN","ocean",12294.3,4.197,0.799,27.5,0.02],["F_EU_FR_DOUVRIN","D_AS_JP_TOYOTA_CITY","ocean",12821.9,4.3,0.833,28.4,0.02],["F_EU_FR_DOUVRIN","D_AS_CN_BYD_SHENZHEN","ocean",12793.8,4.295,0.832,28.3,0.02],["F_EU_FR_DOUVRIN","D_AS_IN_MARUTI_MANESAR","ocean",8809.8,3.518,0.573,21.7,0.02],["F_EU_FR_DOUVRIN","D_ME_TR_TOGG_GEMLIK","road",3134,3.763,1.263,7.3,0.02],["F_EU_FR_DOUVRIN","D_ME_SA_LUCID_KAEC","short_sea",5974.5,3.13,0.699,16.3,0.02],["F_EU_FR_DOUVRIN","D_SA_BR_STELLANTIS_BETIM","ocean",12268.2,4.192,0.797,27.4,0.02],["F_EU_FR_DOUVRIN","D_SA_BR_VOLKSWAGEN_ABC","ocean",12917.1,4.319,0.84,28.5,0.02],["F_EU_FR_DOUVRIN","D_SA_AR_TOYOTA_ZARATE","ocean",15104.2,4.745,0.982,32.2,0.02],["F_EU_ES_ZARAGOZA","D_EU_DE_VW_WOLFSBURG","rail_road",1929.8,1.579,0.376,4.6,0.0],["F_EU_ES_ZARAGOZA","D_EU_DE_BMW_MUNICH","rail_road",1580.9,1.375,0.308,4.1,0.0],["F_EU_ES_ZARAGOZA","D_EU_DE_MERCEDES_SINDELFINGEN","rail_road",1430.9,1.287,0.279,3.9,0.0],["F_EU_ES_ZARAGOZA","D_EU_DE_TESLA_GRUENHEIDE","rail_road",2114.2,1.687,0.412,4.8,0.0],["F_EU_ES_ZARAGOZA","D_EU_FR_RENAULT_DOUAI","rail_road",1320.7,1.223,0.258,3.8,0.0],["F_EU_ES_ZARAGOZA","D_EU_FR_STELLANTIS_MULHOUSE","rail_road",1219.3,1.163,0.238,3.6,0.0],["F_EU_ES_ZARAGOZA","D_EU_ES_STELLANTIS_ZARAGOZA","road",0,0.3,0,1,0.0],["F_EU_ES_ZARAGOZA","D_EU_IT_STELLANTIS_MIRAFIORI","road",978.5,1.381,0.394,3,0.0],["F_EU_ES_ZARAGOZA","D_EU_SE_VOLVO_GOTHENBURG","rail_road",2603.7,1.973,0.508,5.5,0.0],["F_EU_ES_ZARAGOZA","D_EU_CZ_HYUNDAI_NOSOVICE","rail_road",2258.6,1.771,0.44,5,0.0],["F_EU_ES_ZARAGOZA","D_EU_SK_KIA_ZILINA","rail_road",2261.3,1.773,0.441,5,0.0],["F_EU_ES_ZARAGOZA","D_EU_BE_VOLVO_GHENT","rail_road",1433.3,1.289,0.28,3.9,0.0],["F_EU_ES_ZARAGOZA","D_AS_KR_HYUNDAI_ULSAN","ocean",13562.2,4.445,0.882,29.6,0.02],["F_EU_ES_ZARAGOZA","D_AS_JP_TOYOTA_CITY","ocean",14135.4,4.556,0.919,30.6,0.02],["F_EU_ES_ZARAGOZA","D_AS_CN_BYD_SHENZHEN","ocean",13821.1,4.495,0.898,30,0.02],["F_EU_ES_ZARAGOZA","D_AS_IN_MARUTI_MANESAR","ocean",9453.5,3.643,0.614,22.8,0.02],["F_EU_ES_ZARAGOZA","D_ME_TR_TOGG_GEMLIK","short_sea",3388.6,2.122,0.396,10.5,0.02],["F_EU_ES_ZARAGOZA","D_ME_SA_LUCID_KAEC","short_sea",5776.6,3.053,0.676,15.8,0.02],["F_EU_ES_ZARAGOZA","D_SA_BR_STELLANTIS_BETIM","ocean",11033.7,3.952,0.717,25.4,0.02],["F_EU_ES_ZARAGOZA","D_SA_BR_VOLKSWAGEN_ABC","ocean",11682.5,4.078,0.759,26.5,0.02],["F_EU_ES_ZARAGOZA","D_SA_AR_TOYOTA_ZARATE","ocean",13906.9,4.512,0.904,30.2,0.02],["F_EU_SE_SKELLEFTEA","D_EU_DE_VW_WOLFSBURG","rail_road",1933.9,1.581,0.377,4.6,0.0],["F_EU_SE_SKELLEFTEA","D_EU_DE_BMW_MUNICH","rail_road",2504.1,1.915,0.488,5.3,0.0],["F_EU_SE_SKELLEFTEA","D_EU_DE_MERCEDES_SINDELFINGEN","rail_road",2495.2,1.91,0.487,5.3,0.0],["F_EU_SE_SKELLEFTEA","D_EU_DE_TESLA_GRUENHEIDE","rail_road",1862.3,1.539,0.363,4.5,0.0],["F_EU_SE_SKELLEFTEA","D_EU_FR_RENAULT_DOUAI","rail_road",2478.9,1.9,0.483,5.3,0.0],["F_EU_SE_SKELLEFTEA","D_EU_FR_STELLANTIS_MULHOUSE","rail_road",2675.6,2.015,0.522,5.6,0.0],["F_EU_SE_SKELLEFTEA","D_EU_ES_STELLANTIS_ZARAGOZA","rail_road",3792.3,2.669,0.74,7.1,0.0],["F_EU_SE_SKELLEFTEA","D_EU_IT_STELLANTIS_MIRAFIORI","rail_road",3043.5,2.23,0.593,6.1,0.0],["F_EU_SE_SKELLEFTEA","D_EU_SE_VOLVO_GOTHENBURG","rail_road",1191.6,1.147,0.232,3.6,0.0],["F_EU_SE_SKELLEFTEA","D_EU_CZ_HYUNDAI_NOSOVICE","rail_road",2189.8,1.731,0.427,4.9,0.0],["F_EU_SE_SKELLEFTEA","D_EU_SK_KIA_ZILINA","rail_road",2250.9,1.767,0.439,5,0.0],["F_EU_SE_SKELLEFTEA","D_EU_BE_VOLVO_GHENT","rail_road",2364.4,1.833,0.461,5.2,0.0],["F_EU_SE_SKELLEFTEA","D_AS_KR_HYUNDAI_ULSAN","ocean",9816.6,3.714,0.638,23.4,0.02],["F_EU_SE_SKELLEFTEA","D_AS_JP_TOYOTA_CITY","ocean",10290.2,3.807,0.669,24.2,0.02],["F_EU_SE_SKELLEFTEA","D_AS_CN_BYD_SHENZHEN","ocean",10659.7,3.879,0.693,24.8,0.02],["F_EU_SE_SKELLEFTEA","D_AS_IN_MARUTI_MANESAR","ocean",7542.8,3.271,0.49,19.6,0.02],["F_EU_SE_SKELLEFTEA","D_ME_TR_TOGG_GEMLIK","short_sea",3719.6,2.251,0.435,11.3,0.02],["F_EU_SE_SKELLEFTEA","D_ME_SA_LUCID_KAEC","short_sea",6602.7,3.375,0.773,17.7,0.02],["F_EU_SE_SKELLEFTEA","D_SA_BR_STELLANTIS_BETIM","ocean",14721.3,4.671,0.957,31.5,0.02],["F_EU_SE_SKELLEFTEA","D_SA_BR_VOLKSWAGEN_ABC","ocean",15365.6,4.796,0.999,32.6,0.02],["F_EU_SE_SKELLEFTEA","D_SA_AR_TOYOTA_ZARATE","ocean",17482.2,5.209,1.136,36.1,0.02],["F_EU_PT_SINES","D_EU_DE_VW_WOLFSBURG","rail_road",2877.7,2.133,0.561,5.8,0.0],["F_EU_PT_SINES","D_EU_DE_BMW_MUNICH","rail_road",2602.1,1.972,0.507,5.5,0.0],["F_EU_PT_SINES","D_EU_DE_MERCEDES_SINDELFINGEN","rail_road",2428.8,1.871,0.474,5.2,0.0],["F_EU_PT_SINES","D_EU_DE_TESLA_GRUENHEIDE","rail_road",3089.9,2.258,0.603,6.1,0.0],["F_EU_PT_SINES","D_EU_FR_RENAULT_DOUAI","rail_road",2175.6,1.723,0.424,4.9,0.0],["F_EU_PT_SINES","D_EU_FR_STELLANTIS_MULHOUSE","rail_road",2218.8,1.748,0.433,5,0.0],["F_EU_PT_SINES","D_EU_ES_STELLANTIS_ZARAGOZA","road",996,1.401,0.401,3,0.0],["F_EU_PT_SINES","D_EU_IT_STELLANTIS_MIRAFIORI","rail_road",2052.7,1.651,0.4,4.7,0.0],["F_EU_PT_SINES","D_EU_SE_VOLVO_GOTHENBURG","rail_road",3469.2,2.479,0.676,6.6,0.0],["F_EU_PT_SINES","D_EU_CZ_HYUNDAI_NOSOVICE","rail_road",3285.8,2.372,0.641,6.4,0.0],["F_EU_PT_SINES","D_EU_SK_KIA_ZILINA","rail_road",3291.6,2.376,0.642,6.4,0.0],["F_EU_PT_SINES","D_EU_BE_VOLVO_GHENT","rail_road",2289.4,1.789,0.446,5.1,0.0],["F_EU_PT_SINES","D_AS_KR_HYUNDAI_ULSAN","ocean",14551.3,4.638,0.946,31.3,0.02],["F_EU_PT_SINES","D_AS_JP_TOYOTA_CITY","ocean",15081.4,4.741,0.98,32.1,0.02],["F_EU_PT_SINES","D_AS_CN_BYD_SHENZHEN","ocean",14893.3,4.704,0.968,31.8,0.02],["F_EU_PT_SINES","D_AS_IN_MARUTI_MANESAR","ocean",10501.4,3.848,0.683,24.5,0.02],["F_EU_PT_SINES","D_ME_TR_TOGG_GEMLIK","short_sea",4406.1,2.518,0.516,12.8,0.02],["F_EU_PT_SINES","D_ME_SA_LUCID_KAEC","short_sea",6563.6,3.36,0.768,17.6,0.02],["F_EU_PT_SINES","D_SA_BR_STELLANTIS_BETIM","ocean",10020.8,3.754,0.651,23.7,0.02],["F_EU_PT_SINES","D_SA_BR_VOLKSWAGEN_ABC","ocean",10670,3.881,0.694,24.8,0.02],["F_EU_PT_SINES","D_SA_AR_TOYOTA_ZARATE","ocean",12876.9,4.311,0.837,28.5,0.02],["F_EU_CZ_OSTRAVA","D_EU_DE_VW_WOLFSBURG","road",745.1,1.123,0.3,2.5,0.0],["F_EU_CZ_OSTRAVA","D_EU_DE_BMW_MUNICH","road",652.3,1.021,0.263,2.3,0.0],["F_EU_CZ_OSTRAVA","D_EU_DE_MERCEDES_SINDELFINGEN","road",853.1,1.243,0.344,2.7,0.0],["F_EU_CZ_OSTRAVA","D_EU_DE_TESLA_GRUENHEIDE","road",529.1,0.885,0.213,2.1,0.0],["F_EU_CZ_OSTRAVA","D_EU_FR_RENAULT_DOUAI","rail_road",1407.5,1.273,0.274,3.9,0.0],["F_EU_CZ_OSTRAVA","D_EU_FR_STELLANTIS_MULHOUSE","road",1039.7,1.449,0.419,3.1,0.0],["F_EU_CZ_OSTRAVA","D_EU_ES_STELLANTIS_ZARAGOZA","rail_road",2253.4,1.768,0.439,5,0.0],["F_EU_CZ_OSTRAVA","D_EU_IT_STELLANTIS_MIRAFIORI","rail_road",1247.7,1.18,0.243,3.7,0.0],["F_EU_CZ_OSTRAVA","D_EU_SE_VOLVO_GOTHENBURG","rail_road",1259.2,1.187,0.246,3.7,0.0],["F_EU_CZ_OSTRAVA","D_EU_CZ_HYUNDAI_NOSOVICE","road",27,0.33,0.011,1.1,0.0],["F_EU_CZ_OSTRAVA","D_EU_SK_KIA_ZILINA","road",93.6,0.403,0.038,1.2,0.0],["F_EU_CZ_OSTRAVA","D_EU_BE_VOLVO_GHENT","rail_road",1347.3,1.238,0.263,3.8,0.0],["F_EU_CZ_OSTRAVA","D_AS_KR_HYUNDAI_ULSAN","ocean",11288,4.001,0.734,25.8,0.02],["F_EU_CZ_OSTRAVA","D_AS_JP_TOYOTA_CITY","ocean",11918.5,4.124,0.775,26.9,0.02],["F_EU_CZ_OSTRAVA","D_AS_CN_BYD_SHENZHEN","ocean",11490.1,4.041,0.747,26.2,0.02],["F_EU_CZ_OSTRAVA","D_AS_IN_MARUTI_MANESAR","ocean",7333.8,3.23,0.477,19.2,0.02],["F_EU_CZ_OSTRAVA","D_ME_TR_TOGG_GEMLIK","road",1818.1,2.309,0.733,4.6,0.02],["F_EU_CZ_OSTRAVA","D_ME_SA_LUCID_KAEC","short_sea",4792.4,2.669,0.561,13.6,0.02],["F_EU_CZ_OSTRAVA","D_SA_BR_STELLANTIS_BETIM","ocean",13342.4,4.402,0.867,29.2,0.02],["F_EU_CZ_OSTRAVA","D_SA_BR_VOLKSWAGEN_ABC","ocean",13989.4,4.528,0.909,30.3,0.02],["F_EU_CZ_OSTRAVA","D_SA_AR_TOYOTA_ZARATE","ocean",16228.2,4.964,1.055,34,0.02]],"carbonPrice":{"2026":75,"2027":77.25,"2028":79.57,"2029":81.95,"2030":84.41,"2031":86.95,"2032":89.55,"2033":92.24,"2034":95.01,"2035":97.86,"2036":100.79,"2037":103.82,"2038":106.93,"2039":110.14,"2040":113.44,"2041":116.85,"2042":120.35,"2043":123.96,"2044":127.68,"2045":131.51},"case":{"source":"INU_GLR_Case_Battery_Carbon_Border 자료 6~10, 14 (pp.17-19, 23)","wacc":0.09,"sourcingCap":0.7,"fx":1.1,"powerKwh":38.8,"materialCost":50,"priceTrend":{"earlyRate":-0.015,"lateRate":-0.005,"earlyYears":4},"processingLearning":{"rate":-0.01,"years":9},"fixedOpexGrowth":0.015,"rampOpexFloor":0.6,"inventoryRate":0.12,"safetyDays":7,"cbamShare":0.25,"highCarbonMultiplier":1.5,"highFullCbamFrom":2030,"internalCarbonRef":50,"localPenalty":6,"localPenaltyFrom":2030,"capFrom":2030,"cap2030":65,"cap2035From":2035,"cap2035":60,"greenfield":{"capex":[0.4,0.6],"ramp":[0.5,0.85,1.0],"firstOutputYear":2029},"expansion":{"capex":[0.7,0.3],"ramp":[0.5,1.0],"firstOutputYear":2028},"capexStartYear":2027,"depreciationYears":10,"existingWroclaw":{"2026":86,"2027":88,"from2028":90,"note":"Excel 현재 86/목표 90, PDF 3쪽 2028년 90GWh. 2027년 88은 선형 보간 가정(자료 14 절대 NPV 5개 재현으로 확인)"},"taxRate":{"KR":0.24,"PL":0.19,"HU":0.09,"DE":0.3,"FR":0.25,"ES":0.25,"SE":0.206,"PT":0.21,"CZ":0.21},"subsidy":{"F_EU_PL_WROCLAW_EXP":0.1,"F_EU_HU_DEBRECEN":0.15,"F_EU_DE_BRANDENBURG":0.15,"F_EU_FR_DOUVRIN":0.25,"F_EU_ES_ZARAGOZA":0.15,"F_EU_SE_SKELLEFTEA":0.1,"F_EU_PT_SINES":0.15,"F_EU_CZ_OSTRAVA":0.12},"benchmarks":{"landed2026VW":{"F_KR_LGES_OCHANG":{"cost":86.4,"carbon":58.02,"lead":25.8},"F_EU_PL_LGES_WROCLAW":{"cost":86.24,"carbon":50.27,"lead":2.1}},"baselineNpv":{"base":15986,"high":15711,"cap":6132,"slow":14916,"local":15778},"incrementalNpv":{"F_EU_PL_WROCLAW_EXP":[-365,-159,-3680,-1365,-215],"F_EU_HU_DEBRECEN":[263,523,2336,-1206,456],"F_EU_DE_BRANDENBURG":[-2083,-1908,-166,-3367,-1902],"F_EU_FR_DOUVRIN":[-997,-706,521,-2065,-833],"F_EU_ES_ZARAGOZA":[-167,78,1311,-1195,-9],"F_EU_SE_SKELLEFTEA":[-2046,-1777,-608,-3053,-1907],"F_EU_PT_SINES":[-798,-598,305,-1473,-680],"F_EU_CZ_OSTRAVA":[-511,-426,907,-1357,-375]},"standaloneNpv":{"F_EU_PL_WROCLAW_EXP":152,"F_EU_HU_DEBRECEN":1799,"F_EU_DE_BRANDENBURG":-366,"F_EU_FR_DOUVRIN":-433,"F_EU_ES_ZARAGOZA":263,"F_EU_SE_SKELLEFTEA":-963,"F_EU_PT_SINES":-558,"F_EU_CZ_OSTRAVA":364}}}};
+
+</script>
+<script>
+window.HANURI_VERIFICATION = {"checkedAt": "2026-10-25T18:48:18+09:00", "engineVersion": "4.0.0", "dataFingerprint": "5b0f7bd1ea71", "caseReproduction": {"passed": 55, "total": 55}, "constraintViolations": 0, "lp": {"count": 900, "worst": {"gap": 2.2737367544323206e-12, "dualInf": 0, "primalInf": 2.842170943040401e-14}}, "crossCheck": {"plans": 1260, "yearlyLPs": 25200, "maxLpObjectiveDiff": 3.637978807091713e-12, "npvExactMatches": 1240, "alternativeOptimaTies": [{"sc": "base", "sites": [["F_EU_HU_DEBRECEN", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 0.3592}, {"sc": "high", "sites": [["F_EU_HU_DEBRECEN", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 1.3075}, {"sc": "slow", "sites": [["F_EU_HU_DEBRECEN", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 1.1769}, {"sc": "local", "sites": [["F_EU_HU_DEBRECEN", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 0.3592}, {"sc": "fast", "sites": [["F_EU_HU_DEBRECEN", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 1.1473}, {"sc": "base", "sites": [["F_EU_HU_DEBRECEN", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 0.3592}, {"sc": "high", "sites": [["F_EU_HU_DEBRECEN", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 1.3075}, {"sc": "slow", "sites": [["F_EU_HU_DEBRECEN", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 1.1769}, {"sc": "local", "sites": [["F_EU_HU_DEBRECEN", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 0.3592}, {"sc": "fast", "sites": [["F_EU_HU_DEBRECEN", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 1.1473}, {"sc": "base", "sites": [["F_EU_DE_BRANDENBURG", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 0.0052}, {"sc": "high", "sites": [["F_EU_DE_BRANDENBURG", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 1.3075}, {"sc": "slow", "sites": [["F_EU_DE_BRANDENBURG", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 0.1038}, {"sc": "local", "sites": [["F_EU_DE_BRANDENBURG", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 0.0052}, {"sc": "base", "sites": [["F_EU_DE_BRANDENBURG", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 0.0052}, {"sc": "high", "sites": [["F_EU_DE_BRANDENBURG", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 1.3075}, {"sc": "slow", "sites": [["F_EU_DE_BRANDENBURG", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 0.1038}, {"sc": "local", "sites": [["F_EU_DE_BRANDENBURG", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 0.0052}, {"sc": "high", "sites": [["F_EU_CZ_OSTRAVA", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 1.3075}, {"sc": "high", "sites": [["F_EU_CZ_OSTRAVA", 0], ["F_EU_PL_WROCLAW_EXP", 2]], "npvDiff": 1.3075}], "maxNpvDiffUsdMillion": 1.3075118706801732, "reference": "tools/reference_model.py + HiGHS"}, "strategySample": {"options": {"learnYear": 2028, "info": "policy", "probs": {"base": 1, "high": 1, "cap": 1, "slow": 1, "local": 1, "fast": 1}, "scenarios": ["base", "high", "cap", "slow", "local", "fast"], "pairsAtL": true, "secondSite": true, "hedge": {"enabled": true, "share": 0.35}, "cfg": {"hedgePremium": 0, "fastK": 1.5}}, "evWinner": "데브레첸 지금 착공 + 2028년 대응", "mrWinner": "2028년까지 대기 후 결정 (최대후회 기준 대응)"}, "runtimeSec": 55.5};
+</script>
+<script>
+/* 한누리 배터리 공급망 최종 엔진(4.0.0, battery-scn-v3 3.0.0 기반). DOM·네트워크 의존 없음(브라우저·V8 공용).
+ * 4.0.0: 6번째 미래 '수요 가속'(분석 확장), 기준별 부분정보 대응(최대후회 직접 최소화), 결정 시점 2곳 동시 착공 선택, 수요 상방 전환점(upside).
+ * 단위: 물량 GWh/년, 단위원가 USD/kWh, 현금 USD million (GWh × USD/kWh = USD million).
+ * 1) 사례 모형: 자료 6~10·14 규칙. 연도별 공급배정 LP(세전 공헌이익 최대화) → 공장별 세후 현금흐름 → NPV.
+ * 2) 전략 최적화: 지금 결정 / 학습 후 결정(실물옵션) / 2번째 거점·탄소 헤지를 이산 정책 공간에서 완전열거.
+ */
+var HanuriEngine = (function () {
+  'use strict';
+  var VERSION = '4.0.0';
+  var SCENARIOS = [
+    { id: 'base', name: '기준', desc: '자료 5·9·10 기준 경로, 시장기반 탄소발자국' },
+    { id: 'high', name: '고탄소', desc: '탄소가격 ×1.5, 2030년부터 한국산 내재배출 100% CBAM, EU OEM 내부 탄소가격(50kg 기준 ±)' },
+    { id: 'cap', name: '탄소발자국 상한', desc: '위치기반(PPA·GO 불인정), EU 공급 셀+운송 2030년 65·2035년 60kg 상한' },
+    { id: 'slow', name: '수요 둔화', desc: '모든 OEM 수요 성장률 ×0.5' },
+    { id: 'local', name: '역내생산 요건', desc: '2030년부터 한국산 셀 EU 공급에 USD 6/kWh 불이익' },
+    { id: 'fast', name: '수요 가속', desc: '모든 OEM 수요 성장률 ×K(기본 1.5). 사례의 수요 둔화(×0.5)와 대칭인 분석 확장', ext: true }
+  ];
+  var SC_IDS = SCENARIOS.map(function (s) { return s.id; });
+  var CASE_SC = ['base', 'high', 'cap', 'slow', 'local'];   // 사례 자료 14의 다섯 미래(재현 검증 대상)
+  var DEMAND_GROUP = ['base', 'slow', 'fast'];                // 정책 정보만으로는 구분할 수 없는 수요 경로
+  var YEARS = []; for (var yy = 2026; yy <= 2045; yy++) YEARS.push(yy);
+  var EPS = 1e-9;
+
+  /* ---------- LP: maximize c·x s.t. Σ_{j∈rows[r]} x_j ≤ ub[r], x ≥ 0 (ub ≥ 0) ----------
+   * 원점이 실행가능하므로 1단계 없이 표준 primal simplex. Dantzig 규칙, 퇴화 반복 시 Bland 규칙으로 순환 방지.
+   * 반환: 해, 목적값, 쌍대가격(제약 1단위 완화의 목적값 증가), 최적성 증명(쌍대 실행가능성·강쌍대성) 오차. */
+  function solveLP(c, rows, ub) {
+    var n = c.length, m = rows.length, W = n + m + 1, r, j, k;
+    var T = new Float64Array(m * W), d = new Float64Array(n + m), basis = new Int32Array(m);
+    for (r = 0; r < m; r++) {
+      var row = rows[r];
+      for (k = 0; k < row.length; k++) T[r * W + row[k]] = 1;
+      T[r * W + n + r] = 1; T[r * W + n + m] = Math.max(0, ub[r]); basis[r] = n + r;
+    }
+    for (j = 0; j < n; j++) d[j] = c[j];
+    var obj = 0, iter = 0, degenerate = 0, maxIter = 50 * (n + m) + 1000;
+    while (iter++ < maxIter) {
+      var enter = -1, best = 1e-10;
+      if (degenerate > 30) { for (j = 0; j < n + m; j++) if (d[j] > 1e-10) { enter = j; break; } }
+      else { for (j = 0; j < n + m; j++) if (d[j] > best) { best = d[j]; enter = j; } }
+      if (enter < 0) break;
+      var leave = -1, ratio = Infinity;
+      for (r = 0; r < m; r++) {
+        var a = T[r * W + enter];
+        if (a > 1e-12) {
+          var q = T[r * W + n + m] / a;
+          if (q < ratio - 1e-12 || (Math.abs(q - ratio) <= 1e-12 && basis[r] < basis[leave])) { ratio = q; leave = r; }
+        }
+      }
+      if (leave < 0) return { status: 'unbounded' };
+      degenerate = ratio < 1e-12 ? degenerate + 1 : 0;
+      var p = T[leave * W + enter], base = leave * W;
+      for (j = 0; j < W; j++) T[base + j] /= p;
+      for (r = 0; r < m; r++) {
+        if (r === leave) continue;
+        var f = T[r * W + enter];
+        if (f !== 0) { var rb = r * W; for (j = 0; j < W; j++) T[rb + j] -= f * T[base + j]; if (T[rb + n + m] < 0 && T[rb + n + m] > -1e-11) T[rb + n + m] = 0; }
+      }
+      var fd = d[enter];
+      for (j = 0; j < n + m; j++) d[j] -= fd * T[base + j];
+      obj += fd * T[base + n + m];
+      basis[leave] = enter;
+    }
+    if (iter >= maxIter) return { status: 'iteration_limit' };
+    var x = new Float64Array(n);
+    for (r = 0; r < m; r++) if (basis[r] < n) x[basis[r]] = Math.max(0, T[r * W + n + m]);
+    var y = new Float64Array(m), dualObj = 0, dualInf = 0;
+    for (r = 0; r < m; r++) { y[r] = Math.max(0, -d[n + r]); dualObj += y[r] * ub[r]; }
+    // 쌍대 실행가능성: 모든 j에 대해 Σ_r a_rj y_r ≥ c_j
+    var colSum = new Float64Array(n);
+    for (r = 0; r < m; r++) for (k = 0; k < rows[r].length; k++) colSum[rows[r][k]] += y[r];
+    for (j = 0; j < n; j++) dualInf = Math.max(dualInf, c[j] - colSum[j]);
+    var primal = 0, primalInf = 0;
+    for (j = 0; j < n; j++) primal += c[j] * x[j];
+    for (r = 0; r < m; r++) { var s = 0; for (k = 0; k < rows[r].length; k++) s += x[rows[r][k]]; primalInf = Math.max(primalInf, s - ub[r]); }
+    return { status: 'optimal', x: x, obj: primal, duals: y, gap: Math.abs(primal - dualObj), dualInf: Math.max(0, dualInf), primalInf: Math.max(0, primalInf), iterations: iter };
+  }
+
+  /* ---------- 데이터 준비 ---------- */
+  function build(data) {
+    var C = data.case, fac = {}, lane = {};
+    data.factories.forEach(function (f) { fac[f.id] = f; f.country = f.id.split('_')[1] === 'EU' ? f.id.split('_')[2] : f.id.split('_')[1]; f.exp = /_EXP$/.test(f.id); });
+    data.demands.forEach(function (d) { d.region = d.id.split('_')[1]; d.eu = d.region === 'EU'; });
+    data.lanes.forEach(function (l) { lane[l[0] + '|' + l[1]] = { mode: l[2], km: l[3], freight: l[4], tc: l[5], lead: l[6], tariff: l[7] }; });
+    return {
+      data: data, C: C, fac: fac, lane: lane, D: data.demands,
+      existing: data.factories.filter(function (f) { return f.status === 'existing'; }).map(function (f) { return f.id; }),
+      cands: data.factories.filter(function (f) { return f.status === 'candidate'; }).map(function (f) { return f.id; }),
+      cache: {}, lpCount: 0, lpWorst: { gap: 0, dualInf: 0, primalInf: 0 }
+    };
+  }
+  function trend(C, y) { var t = y - 2026, e = C.priceTrend.earlyYears; return Math.pow(1 + C.priceTrend.earlyRate, Math.min(t, e)) * Math.pow(1 + C.priceTrend.lateRate, Math.max(0, t - e)); }
+  function demandAt(M, d, y, sc, cfg) {
+    var t = y - 2026, k = sc === 'slow' ? 0.5 : sc === 'fast' ? (cfg.fastK || 1.5) : 1;
+    return (cfg.demandMult || 1) * d.d0 * Math.pow(1 + k * d.g1, Math.min(t, 4)) * Math.pow(1 + k * d.g2, Math.max(0, t - 4));
+  }
+  function startYear(M, f, delay, permit) { var g = f.exp ? M.C.expansion : M.C.greenfield; return g.firstOutputYear + (delay || 0) + (permit || 0); }
+  function capacityAt(M, f, y, site) {
+    if (f.status === 'existing') {
+      if (/WROCLAW/.test(f.id)) { var w = M.C.existingWroclaw; return y <= 2026 ? w['2026'] : y === 2027 ? w['2027'] : w.from2028; }
+      return f.cap0;
+    }
+    var g = f.exp ? M.C.expansion : M.C.greenfield, age = y - startYear(M, f, site.delay, site.permit);
+    return age < 0 ? 0 : f.cap * g.ramp[Math.min(age, g.ramp.length - 1)];
+  }
+  function locationCell(f) { return f.emb + 38.8 * f.grid * f.re; }
+  function econ(M, f, d, y, sc, cfg, site) {
+    var C = M.C, L = M.lane[f.id + '|' + d.id], t = y - 2026, kr = f.country === 'KR', tr = trend(C, y);
+    var risk = site.risk || {};
+    var material = C.materialCost * tr / f.yield;
+    var processing = f.proc * (1 + (risk.proc || 0)) * Math.pow(1 + C.processingLearning.rate, Math.min(t, C.processingLearning.years));
+    var power = C.powerKwh * f.elec;
+    var price = d.p0 * tr;
+    var cp = M.data.carbonPrice[String(y)] * (cfg.carbonMult || 1) * (sc === 'high' ? C.highCarbonMultiplier : 1);
+    var mkt = f.emb, loc = locationCell(f);
+    var hs = (site.hedge || 0);
+    if (hs > 0 && y >= (cfg.hedgeFrom || 2030)) { loc -= C.powerKwh * f.grid * hs; power += C.powerKwh * hs * (cfg.hedgePremium || 0) / 1000; }
+    var tariff = price * L.tariff;
+    var inventory = C.inventoryRate * (L.lead + C.safetyDays) / 365 * (material + processing);
+    var cbam = kr && d.eu ? mkt * (sc === 'high' && y >= C.highFullCbamFrom ? 1 : C.cbamShare) * cp * C.fx / 1000 : 0;
+    var penalty = sc === 'local' && y >= C.localPenaltyFrom && kr && d.eu ? C.localPenalty : 0;
+    var adj = sc === 'high' && d.eu ? ((mkt + L.tc) - C.internalCarbonRef) * cp * C.fx / 1000 : 0;
+    var cost = material + processing + power + L.freight + tariff + inventory + cbam + penalty;
+    var limit = sc === 'cap' && d.eu && y >= C.capFrom ? (y >= C.cap2035From ? C.cap2035 : C.cap2030) : null;
+    return { margin: price - adj - cost, price: price - adj, cost: cost, material: material, processing: processing, power: power, freight: L.freight,
+      tariff: tariff, inventory: inventory, cbam: cbam, penalty: penalty, mkt: mkt + L.tc, loc: loc + L.tc, lead: L.lead, limit: limit,
+      eligible: limit === null || loc + L.tc <= limit + EPS };
+  }
+  function fixedAt(M, f, y, site) {
+    var b = f.fixed * Math.pow(1 + M.C.fixedOpexGrowth, y - 2026);
+    if (f.status === 'existing') return b;
+    var r = capacityAt(M, f, y, site) / f.cap;
+    return r <= 0 ? 0 : b * Math.max(M.C.rampOpexFloor, Math.min(1, r));
+  }
+  function investAt(M, f, y, site) {
+    if (f.status === 'existing') return { capex: 0, subsidy: 0, dep: 0 };
+    var g = f.exp ? M.C.expansion : M.C.greenfield, risk = site.risk || {}, age = y - (M.C.capexStartYear + (site.delay || 0));
+    var total = f.capex * (1 + (risk.capex || 0)), rate = M.C.subsidy[f.id] * (1 - (risk.sub || 0));
+    var capex = age >= 0 && age < g.capex.length ? total * g.capex[age] : 0;
+    var st = startYear(M, f, site.delay, site.permit);
+    return { capex: capex, subsidy: capex * rate, dep: y >= st && y < st + M.C.depreciationYears ? total * (1 - rate) / M.C.depreciationYears : 0 };
+  }
+
+  /* ---------- 투자안 하나(사이트 집합·헤지) × 미래 하나의 20년 평가 ---------- */
+  function planKey(plan) {
+    var s = (plan.sites || []).map(function (x) { return x.id + '@' + (x.delay || 0); }).sort().join(',');
+    var h = Object.keys(plan.hedge || {}).filter(function (k) { return plan.hedge[k] > 0; }).sort().map(function (k) { return k + ':' + plan.hedge[k]; }).join(',');
+    return s + '|' + h;
+  }
+  function cfgKey(cfg) {
+    return JSON.stringify([cfg.demandMult || 1, cfg.carbonMult || 1, cfg.hedgePremium || 0, cfg.hedgeFrom || 2030, cfg.risk || {}, cfg.fastK || 1.5]);
+  }
+  function evaluate(M, plan, sc, cfg) {
+    cfg = cfg || {};
+    var key = planKey(plan) + '#' + sc + '#' + cfgKey(cfg);
+    if (M.cache[key]) return M.cache[key];
+    var C = M.C, plants = [];
+    M.existing.forEach(function (id) { plants.push({ f: M.fac[id], site: { delay: 0, permit: 0, risk: {}, hedge: (plan.hedge || {})[id] || 0 } }); });
+    (plan.sites || []).forEach(function (s) {
+      var risk = (cfg.risk || {})[s.id] || {};
+      plants.push({ f: M.fac[s.id], site: { delay: s.delay || 0, permit: risk.permit || 0, risk: risk, hedge: 0 } });
+    });
+    var npv = 0, annual = [], lpObj = [], pr = {}, y2035 = null, checks = { capacity: 0, sourcing: 0, eligibility: 0 };
+    plants.forEach(function (p) { pr[p.f.id] = { cf: [], prod: [], cap: [], dual: [], ebitda: [], tax: [], capex: [], subsidy: [] }; });
+    YEARS.forEach(function (y) {
+      var vars = [], c = [];
+      plants.forEach(function (p, pi) {
+        p.capY = capacityAt(M, p.f, y, p.site);
+        if (p.capY <= 0) return;
+        M.D.forEach(function (d, di) { var e = econ(M, p.f, d, y, sc, cfg, p.site); if (e.eligible) { vars.push({ pi: pi, di: di, e: e }); c.push(e.margin); } });
+      });
+      var rows = [], ub = [], rowPlant = [];
+      plants.forEach(function (p, pi) { var idx = []; vars.forEach(function (v, k) { if (v.pi === pi) idx.push(k); }); if (idx.length) { rows.push(idx); ub.push(p.capY); rowPlant.push(pi); } });
+      var demRow0 = rows.length, dem = M.D.map(function (d) { return C.sourcingCap * demandAt(M, d, y, sc, cfg); });
+      M.D.forEach(function (d, di) { var idx = []; vars.forEach(function (v, k) { if (v.di === di) idx.push(k); }); if (idx.length) { rows.push(idx); ub.push(dem[di]); } });
+      var sol = vars.length ? solveLP(c, rows, ub) : { status: 'optimal', x: [], duals: [], gap: 0, dualInf: 0, primalInf: 0 };
+      if (sol.status !== 'optimal') throw new Error('LP ' + sol.status + ' ' + y + ' ' + sc);
+      lpObj.push(sol.obj || 0); M.lpCount++; M.lpWorst.gap = Math.max(M.lpWorst.gap, sol.gap); M.lpWorst.dualInf = Math.max(M.lpWorst.dualInf, sol.dualInf); M.lpWorst.primalInf = Math.max(M.lpWorst.primalInf, sol.primalInf);
+      var flows = [];
+      vars.forEach(function (v, k) { if (sol.x[k] > 1e-9) flows.push({ pi: v.pi, di: v.di, gwh: sol.x[k], e: v.e }); });
+      // 독립 제약 검산
+      var sup = M.D.map(function () { return 0; });
+      flows.forEach(function (fl) { sup[fl.di] += fl.gwh; if (!fl.e.eligible) checks.eligibility++; });
+      sup.forEach(function (s, di) { if (s > dem[di] + 1e-6) checks.sourcing++; });
+      var cfY = 0;
+      plants.forEach(function (p, pi) {
+        var mine = flows.filter(function (fl) { return fl.pi === pi; }), prod = 0, contrib = 0;
+        mine.forEach(function (fl) { prod += fl.gwh; contrib += fl.gwh * fl.e.margin; });
+        if (prod > p.capY + 1e-6) checks.capacity++;
+        var fx = fixedAt(M, p.f, y, p.site), inv = investAt(M, p.f, y, p.site), ebitda = contrib - fx;
+        var tax = Math.max(0, C.taxRate[p.f.country] * (ebitda - inv.dep)), cf = ebitda - tax - inv.capex + inv.subsidy;
+        var ri = rowPlant.indexOf(pi), o = pr[p.f.id];
+        o.cf.push(cf); o.prod.push(prod); o.cap.push(p.capY); o.dual.push(ri >= 0 ? sol.duals[ri] : null);
+        o.ebitda.push(ebitda); o.tax.push(tax); o.capex.push(inv.capex); o.subsidy.push(inv.subsidy);
+        cfY += cf;
+      });
+      annual.push(cfY); npv += cfY / Math.pow(1 + C.wacc, y - 2026);
+      if (y === 2035) y2035 = { flows: flows.map(function (fl) { return { plant: plants[fl.pi].f.id, demand: M.D[fl.di].id, gwh: fl.gwh, margin: fl.e.margin, mkt: fl.e.mkt, loc: fl.e.loc, lead: fl.e.lead, cost: fl.e.cost }; }), demand: dem.map(function (x) { return x / C.sourcingCap; }) };
+    });
+    var res = { key: key, sc: sc, plan: plan, npv: npv, cf: annual, lpObj: lpObj, plants: pr, y2035: y2035, checks: checks };
+    M.cache[key] = res;
+    return res;
+  }
+  function pv(M, cf) { var s = 0; for (var i = 0; i < cf.length; i++) s += cf[i] / Math.pow(1 + M.C.wacc, i); return s; }
+  function incremental(M, plan, sc, cfg) { return evaluate(M, plan, sc, cfg).npv - evaluate(M, { sites: [] }, sc, cfg).npv; }
+
+  /* ---------- 전략(정책) 공간 ----------
+   * 1단계(2026.12 이사회): 후보 A 즉시 착공(CAPEX 2027~) 또는 대기.
+   * 2단계(학습 연도 L): 관측 가능한 정보집합별로 대응 행동 선택 — 추가 거점 k'(CAPEX L+1~), Wrocław 저탄소 직접전력 헤지, 또는 없음.
+   * 고정(정적) 정책: 지금 A를 정해진 일정(지연 0·1·2년)으로 확정하고 이후 대응 없음 — v1/v2 방식과의 비교 기준. */
+  function scenariosOf(opt) { return (opt && opt.scenarios && opt.scenarios.length) ? opt.scenarios : SC_IDS; }
+  function infoSets(info, scs) {
+    if (info === 'none') return [scs.slice()];
+    if (info === 'policy') {
+      var g = scs.filter(function (s) { return DEMAND_GROUP.indexOf(s) >= 0; }), out = g.length ? [g] : [];
+      scs.forEach(function (s) { if (DEMAND_GROUP.indexOf(s) < 0) out.push([s]); });
+      return out;
+    }
+    return scs.map(function (s) { return [s]; });
+  }
+  var INFO_SETS = { full: infoSets('full', SC_IDS), policy: infoSets('policy', SC_IDS), none: infoSets('none', SC_IDS) };
+  function actionsFor(M, A, opt) {
+    var L = opt.learnYear - 2026, acts = [{ label: '추가 없음', sites: [], hedge: 0 }];
+    var hedgeOpts = opt.hedge && opt.hedge.enabled ? [0, opt.hedge.share] : [0];
+    hedgeOpts.forEach(function (h) {
+      if (h > 0) acts.push({ label: '브로츠와프 직접전력 ' + Math.round(h * 100) + '%', sites: [], hedge: h });
+      if (A === null || opt.secondSite) M.cands.forEach(function (k) {
+        if (k === A) return;
+        acts.push({ label: M.fac[k].ko + ' ' + (opt.learnYear + 1) + '년 착공' + (h > 0 ? ' + 직접전력 ' + Math.round(h * 100) + '%' : ''), sites: [{ id: k, delay: L }], hedge: h });
+      });
+      if (A === null && opt.pairsAtL) M.cands.forEach(function (k1, i1) { M.cands.forEach(function (k2, i2) {
+        if (i2 <= i1) return;
+        acts.push({ label: M.fac[k1].ko + '+' + M.fac[k2].ko + ' ' + (opt.learnYear + 1) + '년 착공' + (h > 0 ? ' + 직접전력 ' + Math.round(h * 100) + '%' : ''), sites: [{ id: k1, delay: L }, { id: k2, delay: L }], hedge: h });
+      }); });
+    });
+    return acts;
+  }
+  function planOf(A, act) {
+    var sites = (A ? [{ id: A, delay: 0 }] : []).concat(act.sites);
+    return { sites: sites, hedge: act.hedge > 0 ? { F_EU_PL_LGES_WROCLAW: act.hedge } : {} };
+  }
+  function strategyJobs(M, opt) {
+    var jobs = [], seen = {};
+    var scs = scenariosOf(opt);
+    function add(plan) { scs.forEach(function (sc) { var k = planKey(plan) + '#' + sc; if (!seen[k]) { seen[k] = 1; jobs.push({ plan: plan, sc: sc }); } }); }
+    add({ sites: [] });
+    M.cands.forEach(function (k) { (opt.staticDelays || [0, 1, 2]).forEach(function (dl) { add({ sites: [{ id: k, delay: dl }] }); }); });
+    [null].concat(M.cands).forEach(function (A) { actionsFor(M, A, opt).forEach(function (act) { add(planOf(A, act)); }); });
+    return jobs;
+  }
+  function normProbs(p, scs) {
+    scs = scs || SC_IDS;
+    var s = 0; scs.forEach(function (k) { s += Math.max(0, +p[k] || 0); });
+    if (!(s > 0)) throw new Error('확률 합계가 0입니다.');
+    var o = {}; scs.forEach(function (k) { o[k] = Math.max(0, +p[k] || 0) / s; }); return o;
+  }
+  function assembleStrategies(M, opt) {
+    var cfg = opt.cfg || {}, scs = scenariosOf(opt), P = normProbs(opt.probs, scs), sets = infoSets(opt.info || 'policy', scs);
+    var inc = function (plan, sc) { return incremental(M, plan, sc, cfg); };
+    // 사후 최선(완전예지): 이 정책 공간에 들어 있는 모든 투자안 중 미래별 최대(최대후회의 기준점)
+    var hindsight = {};
+    scs.forEach(function (sc) { hindsight[sc] = { value: 0, plan: '무투자' }; });
+    strategyJobs(M, opt).forEach(function (job) {
+      var v = inc(job.plan, job.sc);
+      if (v > hindsight[job.sc].value + 1e-9) hindsight[job.sc] = { value: v, plan: describePlan(M, job.plan) };
+    });
+    var policies = [];
+    // 정적 정책
+    policies.push({ id: 'static:none', type: 'static', first: null, label: '신규 투자 없음(기존 2개 공장 유지)', values: {}, actions: {} });
+    M.cands.forEach(function (k) { (opt.staticDelays || [0, 1, 2]).forEach(function (dl) {
+      policies.push({ id: 'static:' + k + '@' + dl, type: 'static', first: k, delay: dl, label: M.fac[k].ko + (dl ? ' — 지금 확정, ' + dl + '년 늦춘 일정' : ' — 지금 착공'), values: {}, actions: {} });
+    }); });
+    policies.forEach(function (p) { p.plans = {}; scs.forEach(function (sc) { p.plans[sc] = { sites: p.first ? [{ id: p.first, delay: p.delay }] : [] }; p.values[sc] = p.first ? inc(p.plans[sc], sc) : 0; p.actions[sc] = '—'; }); });
+    // 적응형 정책(학습 후 대응). 정보집합마다 하나의 행동(비선견성).
+    // 기대값 기준: 조건부 기대값 최대 / 최대후회 기준: 정보집합 안의 최대후회 최소(동률이면 조건부 기대값)
+    // 정보집합 사이에 연결 제약이 없으므로 최대후회는 정보집합별 최소화로 정확히 분해된다.
+    [null].concat(M.cands).forEach(function (A) {
+      var acts = actionsFor(M, A, opt);
+      var make = function (crit) {
+        var pol = { id: 'adaptive:' + (A || 'wait') + (crit === 'mr' ? '#mr' : ''), type: A ? 'commit+recourse' : 'wait', first: A, crit: crit,
+          label: A ? M.fac[A].ko + ' 지금 착공 + ' + opt.learnYear + '년 대응' : opt.learnYear + '년까지 대기 후 결정', values: {}, actions: {}, plans: {}, rule: [] };
+        sets.forEach(function (set) {
+          var best = null, bestV = -Infinity, bestR = Infinity, w = 0;
+          set.forEach(function (sc) { w += P[sc]; });
+          acts.forEach(function (act) {
+            var ev = 0, mr = -Infinity;
+            set.forEach(function (sc) { var v = inc(planOf(A, act), sc); ev += (w > 0 ? P[sc] / w : 1 / set.length) * v; mr = Math.max(mr, hindsight[sc].value - v); });
+            var better = crit === 'mr' ? (mr < bestR - 1e-9 || (Math.abs(mr - bestR) <= 1e-9 && ev > bestV + 1e-9)) : (ev > bestV + 1e-9);
+            if (better) { best = act; bestV = ev; bestR = mr; }
+          });
+          set.forEach(function (sc) { pol.plans[sc] = planOf(A, best); pol.values[sc] = inc(pol.plans[sc], sc); pol.actions[sc] = best.label; });
+          pol.rule.push({ set: set, action: best.label });
+        });
+        return pol;
+      };
+      var pe = make('ev'), pm = make('mr');
+      policies.push(pe);
+      var same = pe.rule.every(function (r, i) { return r.action === pm.rule[i].action; });
+      if (!same) { pm.label = pe.label + ' (최대후회 기준 대응)'; policies.push(pm); }
+    });
+    policies.forEach(function (p) {
+      p.expected = 0; p.worst = Infinity; p.maxRegret = -Infinity; p.regret = {};
+      scs.forEach(function (sc) { var v = p.values[sc]; p.expected += P[sc] * v; p.worst = Math.min(p.worst, v); p.regret[sc] = hindsight[sc].value - v; p.maxRegret = Math.max(p.maxRegret, p.regret[sc]); });
+    });
+    var byEV = policies.slice().sort(function (a, b) { return b.expected - a.expected; });
+    var byMR = policies.slice().sort(function (a, b) { return a.maxRegret - b.maxRegret || b.expected - a.expected; });
+    return { policies: policies, hindsight: hindsight, probs: P, info: opt.info, learnYear: opt.learnYear, scenarios: scs, evWinner: byEV[0], mrWinner: byMR[0],
+      planCount: Object.keys(M.cache).length, lpCount: M.lpCount };
+  }
+  function describePlan(M, plan) {
+    var parts = (plan.sites || []).map(function (s) { return M.fac[s.id].ko + ' ' + (2027 + (s.delay || 0)) + '년 착공'; });
+    Object.keys(plan.hedge || {}).forEach(function (k) { if (plan.hedge[k] > 0) parts.push(M.fac[k].ko + ' 직접전력 ' + Math.round(plan.hedge[k] * 100) + '%'); });
+    return parts.length ? parts.join(' + ') : '무투자';
+  }
+
+  /* ---------- 허용한계(손익분기) ----------
+   * 임의의 '예시 위험'을 넣는 대신, 결론이 뒤집히는 위험 크기를 재최적화로 찾는다. */
+  function bisect(fn, lo, hi, it) {
+    var flo = fn(lo), fhi = fn(hi);
+    if ((flo > 0) === (fhi > 0)) return null;
+    for (var i = 0; i < (it || 18); i++) { var mid = (lo + hi) / 2, fm = fn(mid); if ((fm > 0) === (flo > 0)) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  }
+  function tolerance(M, siteId, delay, sc, cfg, reference) {
+    cfg = cfg || {}; reference = reference || 0;
+    var plan = { sites: [{ id: siteId, delay: delay || 0 }] };
+    var withRisk = function (r) { var c = JSON.parse(JSON.stringify(cfg)); c.risk = c.risk || {}; c.risk[siteId] = Object.assign({}, c.risk[siteId] || {}, r); return c; };
+    var v0 = incremental(M, plan, sc, cfg) - reference;
+    var out = { siteId: siteId, sc: sc, reference: reference, margin: v0 };
+    out.processing = bisect(function (p) { return incremental(M, plan, sc, withRisk({ proc: p })) - reference; }, 0, 0.5);
+    out.capex = bisect(function (p) { return incremental(M, plan, sc, withRisk({ capex: p })) - reference; }, 0, 1.5);
+    out.subsidyCut = bisect(function (p) { return incremental(M, plan, sc, withRisk({ sub: p })) - reference; }, 0, 1);
+    out.subsidyCutAll = incremental(M, plan, sc, withRisk({ sub: 1 })) - reference;
+    out.permit = [];
+    for (var k = 1; k <= 3; k++) out.permit.push({ years: k, value: incremental(M, plan, sc, withRisk({ permit: k })) - reference });
+    out.demand = bisect(function (m) { var c = Object.assign({}, cfg, { demandMult: m }); return incremental(M, plan, sc, c) - reference; }, 0.6, 1.4);
+    return out;
+  }
+
+  /* ---------- 수요 상방: 수요 가속 배수 K별 가치와 2번째 공장 전환점 ----------
+   * 사례에는 수요가 기준보다 빨리 느는 미래가 없다. 수요 둔화(성장률 ×0.5)와 대칭으로 성장률 ×K를 시험한다. */
+  function euObtainable(M, y, k, dm) {
+    var s = 0, t = y - 2026;
+    M.D.forEach(function (d) { if (d.eu) s += M.C.sourcingCap * (dm || 1) * d.d0 * Math.pow(1 + k * d.g1, Math.min(t, 4)) * Math.pow(1 + k * d.g2, Math.max(0, t - 4)); });
+    return s;
+  }
+  function upside(M, opt) {
+    opt = opt || {};
+    var L = (opt.learnYear || 2028) - 2026, first = opt.firstSite || 'F_EU_HU_DEBRECEN', base = Object.assign({}, opt.cfg || {});
+    var withK = function (K) { return Object.assign({}, base, { fastK: K }); };
+    var bestSecond = function (K, delayFirst) {
+      var c = withK(K), one = incremental(M, { sites: [{ id: first, delay: delayFirst }] }, 'fast', c), best = null;
+      M.cands.forEach(function (k) { if (k === first) return; var v = incremental(M, { sites: [{ id: first, delay: delayFirst }, { id: k, delay: L }] }, 'fast', c); if (!best || v > best.value) best = { id: k, ko: M.fac[k].ko, value: v }; });
+      return { one: one, best: best, gain: best.value - one };
+    };
+    var rows = (opt.ks || [1.25, 1.5, 2.0]).map(function (K) {
+      var c = withK(K), now = incremental(M, { sites: [{ id: first, delay: 0 }] }, 'fast', c), late = incremental(M, { sites: [{ id: first, delay: L }] }, 'fast', c), b2 = bestSecond(K, 0);
+      return { K: K, now: now, late: late, costOfWaiting: now - late, second: b2.best, secondGain: b2.gain, eu2028: euObtainable(M, 2028, K), eu2030: euObtainable(M, 2030, K), eu2035: euObtainable(M, 2035, K), eu2045: euObtainable(M, 2045, K) };
+    });
+    // 2번째 공장이 이익이 되는 K*: (첫 공장 지금 + 2번째 L+1년) > (첫 공장 지금)
+    var kStar = bisect(function (K) { return bestSecond(K, 0).gain; }, 1.0, 3.0, 16);
+    // 대기 정책 기준(둘 다 L+1년 착공): (첫 공장 + 2번째 동시) > (첫 공장만)
+    var kStarL = bisect(function (K) { return bestSecond(K, L).gain; }, 1.0, 4.0, 16);
+    var at = function (K) { return K === null ? null : { K: K, second: bestSecond(K, 0).best, eu2028: euObtainable(M, 2028, K), eu2030: euObtainable(M, 2030, K), eu2035: euObtainable(M, 2035, K) }; };
+    var level = (opt.levels || [1.1, 1.2, 1.3]).map(function (m) {
+      var c = Object.assign({}, base, { demandMult: m }), a = incremental(M, { sites: [{ id: first, delay: 0 }] }, 'base', c), b = incremental(M, { sites: [{ id: first, delay: L }] }, 'base', c);
+      return { m: m, now: a, late: b, costOfWaiting: a - b };
+    });
+    return { first: first, L: L, rows: rows, kStar: at(kStar), kStarL: at(kStarL), level: level,
+      euBase: { 2028: euObtainable(M, 2028, 1), 2030: euObtainable(M, 2030, 1), 2035: euObtainable(M, 2035, 1), 2045: euObtainable(M, 2045, 1) } };
+  }
+
+  /* ---------- 탄소 상한 헤지: 위치기반에서도 인정되는 직접 저탄소 전력 ---------- */
+  function hedgeAnalysis(M, factoryId, share, firstSite, cfg) {
+    cfg = cfg || {};
+    var f = M.fac[factoryId], loc = locationCell(f), C = M.C, lanes = [];
+    M.D.forEach(function (d) {
+      if (!d.eu) return;
+      var L = M.lane[factoryId + '|' + d.id];
+      lanes.push({ demand: d.id, name: d.name, tc: L.tc, loc: loc + L.tc,
+        need65: Math.max(0, (loc + L.tc - C.cap2030) / (C.powerKwh * f.grid)), need60: Math.max(0, (loc + L.tc - C.cap2035) / (C.powerKwh * f.grid)) });
+    });
+    var basePlan = { sites: firstSite ? [{ id: firstSite, delay: 0 }] : [] };
+    var h = {}; h[factoryId] = share;
+    var gain = function (prem) { var c = Object.assign({}, cfg, { hedgePremium: prem }); return evaluate(M, { sites: basePlan.sites, hedge: h }, 'cap', c).npv - evaluate(M, basePlan, 'cap', cfg).npv; };
+    var g0 = gain(0);
+    var be = bisect(gain, 0, 5000, 20);
+    // 헤지 전력 물량(현재가치, TWh): 2030년 이후 생산량 × 38.8kWh × 지분
+    return { factoryId: factoryId, locationCell: loc, marketCell: f.emb, grid: f.grid, lanes: lanes,
+      need65: Math.max.apply(null, lanes.map(function (l) { return l.need65; })), need60: Math.max.apply(null, lanes.map(function (l) { return l.need60; })),
+      share: share, gainAtZeroPremium: g0, breakEvenPremium: be, firstSite: firstSite || null };
+  }
+
+  /* ---------- 2035 운영표(공장 역할·OEM 공급 비중·용량 잠재가격) ---------- */
+  function operations(M, plan, sc, cfg, year) {
+    var r = evaluate(M, plan, sc, cfg || {}), yi = (year || 2035) - 2026, out = { plants: [], oems: [] };
+    var flows = r.y2035.flows;
+    Object.keys(r.plants).forEach(function (id) {
+      var p = r.plants[id], f = M.fac[id], reg = { EU: 0, AS: 0, ME: 0, SA: 0 };
+      flows.forEach(function (fl) { if (fl.plant === id) reg[fl.demand.split('_')[1]] += fl.gwh; });
+      out.plants.push({ id: id, ko: f.ko, cap: p.cap[yi], prod: p.prod[yi], util: p.cap[yi] ? p.prod[yi] / p.cap[yi] : 0, region: reg, dual: p.dual[yi], ebitda: p.ebitda[yi], cf: p.cf[yi] });
+    });
+    M.D.forEach(function (d, di) {
+      var mine = flows.filter(function (fl) { return fl.demand === d.id; }), q = 0; mine.forEach(function (fl) { q += fl.gwh; });
+      out.oems.push({ id: d.id, name: d.name, group: d.group, region: d.region, demand: r.y2035.demand[di], supply: q, rate: r.y2035.demand[di] ? q / r.y2035.demand[di] : 0,
+        mix: mine.map(function (fl) { return { plant: fl.plant, ko: M.fac[fl.plant].ko, gwh: fl.gwh, share: q ? fl.gwh / q : 0 }; }) });
+    });
+    return out;
+  }
+  function capitalCost(M, siteId) { // 순CAPEX/GWh × CRF(WACC, 가동연수) — USD/kWh·년
+    var f = M.fac[siteId], n = 2045 - startYear(M, f, 0, 0) + 1, i = M.C.wacc;
+    var crf = i * Math.pow(1 + i, n) / (Math.pow(1 + i, n) - 1);
+    return { perKwhYear: f.capex * (1 - M.C.subsidy[siteId]) / f.cap * crf, fixedPerKwh: f.fixed / f.cap, years: n, crf: crf };
+  }
+
+  /* ---------- 사례 수치 재현 검증 ---------- */
+  function validate(M) {
+    var B = M.C.benchmarks, rows = [], vw = M.D.filter(function (d) { return d.id === 'D_EU_DE_VW_WOLFSBURG'; })[0];
+    Object.keys(B.landed2026VW).forEach(function (id) {
+      var e = econ(M, M.fac[id], vw, 2026, 'base', {}, { risk: {}, hedge: 0 }), b = B.landed2026VW[id];
+      rows.push({ group: '자료 11 도착원가', item: M.fac[id].ko + ' → 볼프스부르크', ref: b.cost, got: e.cost, ok: Math.abs(e.cost - b.cost) < 0.006 && Math.abs(e.mkt - b.carbon) < 0.006 && Math.abs(e.lead - b.lead) < 0.05 });
+    });
+    CASE_SC.forEach(function (sc, si) {
+      var base = evaluate(M, { sites: [] }, sc, {}).npv;
+      rows.push({ group: '자료 14 무투자 NPV', item: SCENARIOS[si].name, ref: B.baselineNpv[sc], got: base, ok: Math.round(base) === B.baselineNpv[sc] });
+      M.cands.forEach(function (k) {
+        var v = incremental(M, { sites: [{ id: k, delay: 0 }] }, sc, {});
+        rows.push({ group: '자료 14 증분 NPV', item: M.fac[k].ko + ' / ' + SCENARIOS[si].name, ref: B.incrementalNpv[k][si], got: v, ok: Math.round(v) === B.incrementalNpv[k][si] });
+      });
+    });
+    M.cands.forEach(function (k) {
+      var r = evaluate(M, { sites: [{ id: k, delay: 0 }] }, 'base', {}), v = pv(M, r.plants[k].cf);
+      rows.push({ group: '자료 13 공장 단독 NPV', item: M.fac[k].ko, ref: B.standaloneNpv[k], got: v, ok: Math.round(v) === B.standaloneNpv[k] });
+    });
+    var bad = 0; Object.keys(M.cache).forEach(function (k) { var c = M.cache[k].checks; bad += c.capacity + c.sourcing + c.eligibility; });
+    return { rows: rows, passed: rows.filter(function (r) { return r.ok; }).length, total: rows.length, constraintViolations: bad, lp: { count: M.lpCount, worst: M.lpWorst } };
+  }
+
+  return { VERSION: VERSION, SCENARIOS: SCENARIOS, SC_IDS: SC_IDS, CASE_SC: CASE_SC, YEARS: YEARS, INFO_SETS: INFO_SETS, infoSets: infoSets, scenariosOf: scenariosOf,
+    actionsFor: actionsFor, planOf: planOf, upside: upside, euObtainable: euObtainable, solveLP: solveLP, build: build, evaluate: evaluate,
+    incremental: incremental, pv: pv, strategyJobs: strategyJobs, assembleStrategies: assembleStrategies, tolerance: tolerance, hedgeAnalysis: hedgeAnalysis,
+    operations: operations, capitalCost: capitalCost, validate: validate, describePlan: describePlan, econ: econ, locationCell: locationCell, capacityAt: capacityAt };
+})();
+if (typeof module !== 'undefined') module.exports = HanuriEngine;
+
+</script>
+<script>
+/* 한누리 최종(4.0.0) 화면. 모든 수치는 HanuriEngine 실행 결과에서 온다(하드코딩 없음). */
+(function () {
+  'use strict';
+  /* 화면 4.0.1(2026-10-28): 엔진 4.0.0은 그대로. 이사회 권고 (v)를 항상 데브레첸 기준으로 표시하고 2029년 착공 수요 기준(94.0%)을 추가,
+   * 수요 가속 배수 반영, 계산 개수를 이번 계산분으로, 운영 탭 미래 초기화, 조사·설명 문구 정정. */
+  var APP_VERSION = '4.0.1';
+  var E = HanuriEngine, M = E.build(HANURI_DATA), VER = window.HANURI_VERIFICATION || null;
+  var SCN = {}; E.SCENARIOS.forEach(function (s) { SCN[s.id] = s.name; });
+  var DEB = 'F_EU_HU_DEBRECEN', WRO = 'F_EU_PL_LGES_WROCLAW', OCH = 'F_KR_LGES_OCHANG';
+  var TABS = [['answer', '이사회 권고'], ['strategy', '전략 최적화'], ['tolerance', '허용한계·트리거'], ['hedge', '탄소 상한 헤지'], ['ops', '2035 운영'], ['verify', '검토·검증'], ['model', '모형 정의']];
+  var S = {
+    tab: 'answer', busy: false, error: null, criterion: 'mr',
+    opt: { learnYear: 2028, info: 'full', probs: { base: 20, high: 20, cap: 20, slow: 20, local: 20, fast: 20 }, secondSite: true, pairsAtL: false,
+      includeFast: true, fastK: 1.5, hedge: { enabled: false, share: 0.35 }, premium: 0 },
+    R: null, robust: null, tol: null, tolSite: DEB, tolDeb: null, demLate: null, tolLate: null, lastRun: null, hedgeW: null, hedgeWD: null, hedgeO: null, pscan: null, val: null, carbon: null, up: null,
+    opsPolicy: null, opsSc: 'base', risk: { sub: 0, permit: 0, proc: 0, capex: 0 }, riskOut: null
+  };
+  try { var saved = localStorage.getItem('hanuri-final-tab'); if (saved) S.tab = saved; } catch (e) { /* 저장소 없음 */ }
+
+  /* ---------- 형식 ---------- */
+  function fmt(v, d) { d = d || 0; return Number.isFinite(v) ? v.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '—'; }
+  function sgn(v, d) { if (!Number.isFinite(v)) return '—'; var r = fmt(Math.abs(v), d); return (v > 0.0005 ? '+' : v < -0.0005 ? '−' : '') + r; }
+  function pct(v, d) { return Number.isFinite(v) ? fmt(v * 100, d === undefined ? 1 : d) + '%' : '—'; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function cls(v) { return v > 0.5 ? 'cell-pos' : v < -0.5 ? 'cell-neg' : ''; }
+  function ko(id) { return M.fac[id] ? M.fac[id].ko : id; }
+  function chip(t, k) { return '<span class="chip ' + (k || '') + '">' + esc(t) + '</span>'; }
+  function table(head, rows, opts) {
+    opts = opts || {};
+    return '<div class="tablebox"><table><thead><tr>' + head.map(function (h, i) { return '<th class="' + ((opts.num || []).indexOf(i) >= 0 ? 'n' : '') + '">' + h + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rows.map(function (r) { var hl = r.hl; var cells = r.cells || r; return '<tr' + (hl ? ' class="hl"' : '') + '>' + cells.map(function (c, i) { return '<td class="' + ((opts.num || []).indexOf(i) >= 0 ? 'n ' : '') + (c && c.cls ? c.cls : '') + '"' + (c && c.style ? ' style="' + c.style + '"' : '') + '>' + (c && c.html !== undefined ? c.html : c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
+  }
+  function heat(v, maxAbs) {
+    var a = Math.min(34, Math.abs(v) / (maxAbs || 1) * 34);
+    return { html: sgn(v), cls: cls(v), style: 'background: color-mix(in srgb, var(' + (v >= 0 ? '--pos' : '--neg') + ') ' + a.toFixed(1) + '%, transparent)' };
+  }
+  function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+
+  /* ---------- 계산 ---------- */
+  function activeSC() { return S.opt.includeFast ? E.SC_IDS : E.CASE_SC; }
+  function scLabel(k) { return k === 'fast' ? SCN[k] + '(×' + fmt(S.opt.fastK, 2) + ')' : SCN[k]; }
+  function engineOpt(probs) {
+    return { learnYear: S.opt.learnYear, info: S.opt.info, probs: probs || S.opt.probs, secondSite: S.opt.secondSite, pairsAtL: S.opt.pairsAtL, scenarios: activeSC(),
+      hedge: { enabled: S.opt.hedge.enabled, share: S.opt.hedge.share }, cfg: { hedgePremium: S.opt.premium, fastK: S.opt.fastK } };
+  }
+  function winner() { return S.R ? (S.criterion === 'ev' ? S.R.evWinner : S.R.mrWinner) : null; }
+  function policy(id) { return S.R ? S.R.policies.filter(function (p) { return p.id === id; })[0] : null; }
+  function setProgress(f, msg) {
+    var bar = document.getElementById('bar'); if (bar) bar.style.width = Math.round(f * 100) + '%';
+    var st = document.getElementById('status-text'); if (st && msg) st.textContent = msg;
+  }
+  async function recompute() {
+    if (S.busy) return;
+    S.busy = true; S.error = null; renderStatus(); render();
+    try {
+      var o = engineOpt(), jobs = E.strategyJobs(M, o), t0 = performance.now();
+      for (var i = 0; i < jobs.length; i++) {
+        E.evaluate(M, jobs[i].plan, jobs[i].sc, o.cfg);
+        if (i % 30 === 0) { setProgress(0.7 * i / jobs.length, '투자안 ' + i + '/' + jobs.length + ' × 20년 LP'); await tick(); }
+      }
+      S.R = E.assembleStrategies(M, o);
+      S.lastRun = { jobs: jobs.length, lps: jobs.length * E.YEARS.length };  // 이번 계산분(캐시는 세션 누적이라 따로 센다)
+      if (!S.opsPolicy || !policy(S.opsPolicy)) S.opsPolicy = winner().id;
+      if (activeSC().indexOf(S.opsSc) < 0) S.opsSc = 'base';
+      setProgress(0.75, '허용한계 계산'); await tick();
+      S.tolDeb = E.tolerance(M, DEB, 0, 'base', o.cfg, 0);  // 이사회 권고 탭은 항상 데브레첸 기준
+      S.tol = S.tolSite === DEB ? S.tolDeb : E.tolerance(M, S.tolSite, 0, 'base', o.cfg, 0);
+      S.demLate = demandBreakeven(DEB);
+      S.tolLate = S.tolSite === DEB ? S.demLate : demandBreakeven(S.tolSite);
+      S.carbon = [0.5, 1, 2, 3].map(function (m) { return { m: m, v: E.incremental(M, { sites: [{ id: DEB, delay: 0 }] }, 'base', Object.assign({}, o.cfg, { carbonMult: m })) }; });
+      setProgress(0.79, '수요 상방 계산'); await tick();
+      S.up = E.upside(M, { learnYear: S.opt.learnYear, cfg: { hedgePremium: S.opt.premium }, ks: upsideKs() });
+      setProgress(0.82, '탄소 헤지 계산'); await tick();
+      var hs = S.opt.hedge.share || 0.35;
+      S.hedgeW = E.hedgeAnalysis(M, WRO, hs, null, {});
+      S.hedgeWD = E.hedgeAnalysis(M, WRO, hs, DEB, {});
+      S.hedgeO = E.hedgeAnalysis(M, OCH, 0.2, null, {});
+      setProgress(0.88, '확률 전환점 탐색'); await tick();
+      S.pscan = scanSlow();
+      setProgress(0.9, '정보 가정별 강건성'); await tick();
+      S.robust = [];
+      for (var ly of [2027, 2028]) for (var inf of ['full', 'policy', 'none']) {
+        var oo = Object.assign({}, o, { learnYear: ly, info: inf }), jj = E.strategyJobs(M, oo);
+        for (var q = 0; q < jj.length; q++) { E.evaluate(M, jj[q].plan, jj[q].sc, oo.cfg); if (q % 60 === 0) await tick(); }
+        var rr = E.assembleStrategies(M, oo);
+        S.robust.push({ learnYear: ly, info: inf, mr: rr.mrWinner, ev: rr.evWinner });
+      }
+      setProgress(0.95, '사례 재현 검증'); await tick();
+      S.val = E.validate(M);
+      S.runtime = performance.now() - t0;
+    } catch (err) { S.error = err && err.message ? err.message : String(err); }
+    S.busy = false; setProgress(1); renderStatus(); render();
+  }
+  // 결정 시점(learnYear) 다음 해 착공안의 증분 NPV가 0이 되는 수요 수준(전 OEM 동일 비율, 기준 미래). 엔진 tolerance()와 같은 이분 탐색.
+  function demandBreakeven(site) {
+    var cfg = engineOpt().cfg, plan = { sites: [{ id: site, delay: S.opt.learnYear - 2026 }] };
+    var f = function (m) { return E.incremental(M, plan, 'base', Object.assign({}, cfg, { demandMult: m })); };
+    var lo = 0.6, hi = 1.4, flo = f(lo);
+    if ((flo > 0) === (f(hi) > 0)) return null;
+    for (var i = 0; i < 18; i++) { var mid = (lo + hi) / 2; if ((f(mid) > 0) === (flo > 0)) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  }
+  // 수요 상방 표의 성장률 배수: 기본 1.25·1.5·2.0에 현재 수요 가속 배수를 더한다.
+  function upsideKs() {
+    var ks = [1.25, 1.5, 2.0];
+    if (ks.indexOf(S.opt.fastK) < 0) ks.push(S.opt.fastK);
+    return ks.sort(function (a, b) { return a - b; });
+  }
+  function upRow() { return S.up.rows.filter(function (r) { return r.K === S.opt.fastK; })[0] || S.up.rows[1]; }
+  function obj(w) { var c = w.charCodeAt(w.length - 1) - 0xAC00; return w + (c >= 0 && c <= 11171 && c % 28 ? '을' : '를'); }  // 목적격 조사
+  function scanSlow() {
+    var rows = [], wait = 'adaptive:wait', debNow = 'adaptive:' + DEB;
+    var others = activeSC().filter(function (k) { return k !== 'slow'; });
+    for (var p = 0; p <= 100; p += 1) {
+      var pr = { slow: p }; others.forEach(function (k) { pr[k] = (100 - p) / others.length; });
+      var r = E.assembleStrategies(M, engineOpt(pr));
+      var w = r.policies.filter(function (x) { return x.id === wait; })[0], d = r.policies.filter(function (x) { return x.id === debNow; })[0];
+      rows.push({ p: p, ev: r.evWinner.label, evId: r.evWinner.id, wait: w.expected, deb: d.expected });
+    }
+    var ranges = [];
+    rows.forEach(function (r) { var last = ranges[ranges.length - 1]; if (last && last.id === r.evId) last.to = r.p; else ranges.push({ id: r.evId, label: r.ev, from: r.p, to: r.p }); });
+    var cross = null; for (var k = 1; k < rows.length; k++) if ((rows[k - 1].deb - rows[k - 1].wait) * (rows[k].deb - rows[k].wait) <= 0 && rows[k - 1].deb !== rows[k - 1].wait) {
+      var a = rows[k - 1], b = rows[k], t = (a.deb - a.wait) / ((a.deb - a.wait) - (b.deb - b.wait)); cross = a.p + t * (b.p - a.p); break; }
+    return { rows: rows, ranges: ranges, crossDebVsWait: cross };
+  }
+  function applyRisk() {
+    var o = engineOpt(), site = S.tolSite, r = S.risk, risk = {}; risk[site] = { sub: r.sub / 100, permit: r.permit, proc: r.proc / 100, capex: r.capex / 100 };
+    var cfgR = Object.assign({}, o.cfg, { risk: risk });
+    S.riskOut = activeSC().map(function (sc) { return { sc: sc, before: E.incremental(M, { sites: [{ id: site, delay: 0 }] }, sc, o.cfg), after: E.incremental(M, { sites: [{ id: site, delay: 0 }] }, sc, cfgR) }; });
+    render();
+  }
+
+  /* ---------- 공통 조각 ---------- */
+  function policyRuleText(p) {
+    if (!p) return '';
+    if (p.type === 'static') return p.first ? (p.delay ? obj(ko(p.first)) + ' 지금 확정하고 ' + (2027 + p.delay) + '년에 착공합니다. 이후 미래를 보고 바꾸지 않습니다.' : obj(ko(p.first)) + ' 지금 확정하고 2027년에 착공합니다.') : '신규 공장 없이 기존 두 공장으로 운영합니다.';
+    return (p.first ? obj(ko(p.first)) + ' 2027년에 착공하고, ' : '지금은 확정하지 않고, ') + S.R.learnYear + '년 말에 관측한 상황에 따라 ' +
+      p.rule.map(function (r) { return r.set.map(function (s) { return SCN[s]; }).join('·') + ' → ' + r.action; }).join(', ') + '.';
+  }
+  function barChart(series) {
+    var W = 660, H = 250, L = 58, R = 12, T = 12, B = 34, all = [0];
+    var scs = activeSC();
+    series.forEach(function (s) { scs.forEach(function (k) { all.push(s.values[k]); }); });
+    var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all), span = hi - lo || 1, step = Math.pow(10, Math.floor(Math.log10(span / 4)));
+    [1, 2, 2.5, 5, 10].some(function (m) { if (span / (step * m) <= 5) { step *= m; return true; } return false; });
+    lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+    var y = function (v) { return T + (hi - v) / (hi - lo) * (H - T - B); }, gw = (W - L - R) / scs.length, bw = Math.min(26, (gw - 16) / series.length);
+    var g = '';
+    for (var v = lo; v <= hi + 1e-9; v += step) g += '<line class="axis" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + fmt(v) + '</text>';
+    scs.forEach(function (k, i) {
+      var x0 = L + i * gw + (gw - bw * series.length) / 2;
+      series.forEach(function (s, j) { var v = s.values[k], y1 = y(Math.max(0, v)), h = Math.abs(y(v) - y(0)); g += '<rect x="' + (x0 + j * bw + 1) + '" y="' + y1 + '" width="' + (bw - 2) + '" height="' + Math.max(1, h) + '" fill="' + s.color + '"><title>' + esc(s.name + ' / ' + SCN[k] + ': ' + sgn(v)) + '</title></rect>'; });
+      g += '<text x="' + (L + i * gw + gw / 2) + '" y="' + (H - 12) + '" text-anchor="middle">' + SCN[k] + '</text>';
+    });
+    g += '<line class="zero" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(0) + '" y2="' + y(0) + '"/>';
+    return '<div style="overflow-x:auto"><svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="정책별·미래별 증분 NPV 막대그래프" style="max-width:' + W + 'px;min-width:480px">' + g + '</svg></div>' +
+      '<div class="legend">' + series.map(function (s) { return '<span><i style="background:' + s.color + '"></i>' + esc(s.name) + '</span>'; }).join('') + '</div>';
+  }
+
+  /* ---------- 탭: 이사회 권고 ---------- */
+  function viewAnswer() {
+    var w = winner(), R = S.R, deb = policy('static:' + DEB + '@0'), deb2 = policy('static:' + DEB + '@2'), alt = S.criterion === 'mr' ? R.evWinner : R.mrWinner;
+    var opsBase = E.operations(M, w.plans.base, 'base', engineOpt().cfg), opsCap = E.operations(M, w.plans.cap, 'cap', engineOpt().cfg);
+    var none = E.operations(M, { sites: [] }, 'base', engineOpt().cfg);
+    var och = function (o) { return o.plants.filter(function (p) { return p.id === OCH; })[0]; }, wro = function (o) { return o.plants.filter(function (p) { return p.id === WRO; })[0]; };
+    var cc = E.capitalCost(M, DEB), wroDual = wro(none).dual;
+    var t = S.tolDeb, hW = S.hedgeW, hWD = S.hedgeWD, ps = S.pscan;
+    var evOther = alt.id !== w.id ? '<p class="small">기대값(입력 확률) 기준 1위는 <strong>' + esc(alt.label) + '</strong>(기대 증분 NPV ' + sgn(alt.expected) + ')입니다.</p>' : '<p class="small">기대값과 최대후회 두 기준의 1위가 같습니다.</p>';
+    var eu = opsBase.oems.filter(function (o) { return o.region === 'EU'; });
+    var euSupply = eu.reduce(function (a, o) { return a + o.supply; }, 0), euDemand = eu.reduce(function (a, o) { return a + o.demand; }, 0);
+    var top = eu.slice().sort(function (a, b) { return b.supply - a.supply; }).slice(0, 6);
+    var demandBE = t && t.demand ? pct(t.demand, 2) : '범위 밖', demandLate = S.demLate ? pct(S.demLate, 1) : '범위 밖', ur = S.up ? upRow() : null;
+    var crossTxt = ps && ps.crossDebVsWait !== null ? fmt(ps.crossDebVsWait, 0) + '%' : '탐색 범위 밖';
+    return '<div class="stack">' +
+      '<div class="verdict"><span class="eyebrow">권고 · ' + (S.criterion === 'mr' ? '최대후회 최소' : '기대값 최대') + ' · 정책 ' + R.policies.length + '개 완전열거</span>' +
+      '<strong>' + esc(w.label) + '</strong><p>' + esc(policyRuleText(w)) + '</p>' +
+      '<p class="small num">최대후회 ' + fmt(w.maxRegret) + ' · 기대 증분 NPV ' + sgn(w.expected) + ' · 최악 ' + sgn(w.worst) + ' (USD million, 2026년 가치, 무투자 대비)</p>' + evOther + '</div>' +
+      '<div class="panel"><h2>미래별 증분 NPV: 권고안과 기존 권고안</h2>' +
+      barChart([{ name: w.label, color: 'var(--accent)', values: w.values }, { name: '데브레첸 지금 착공 (v1 기본)', color: 'var(--s2)', values: deb.values }, { name: '데브레첸 2년 늦춘 일정 확정 (v1 최대후회 최소)', color: 'var(--s3)', values: deb2.values }]) +
+      '<p class="note">같은 미래의 무투자 대비 USD million. 대기 정책은 ' + R.learnYear + '년 말까지 확인되는 정보(' + infoText(R.info) + ')에 따라 행동이 달라집니다.</p></div>' +
+      '<div class="panel"><h2>이사회 질문 다섯 가지</h2>' +
+      answer('i', '유럽 생산거점과 투자 시기', '<p>' + esc(policyRuleText(w)) + '</p><ul>' +
+        '<li>기준 미래에서 증분 NPV가 양(+)인 후보는 데브레첸 하나뿐입니다(' + sgn(deb.values.base) + '). 공장 단독 NPV ' + sgn(E.pv(M, E.evaluate(M, { sites: [{ id: DEB, delay: 0 }] }, 'base', {}).plants[DEB].cf)) + ' 중 대부분은 기존 공장 물량 잠식으로 상쇄됩니다.</li>' +
+        '<li>데브레첸 지금 착공의 최대후회는 ' + fmt(deb.maxRegret) + '(수요 둔화 시 ' + sgn(deb.values.slow) + ')이고, 권고안은 ' + fmt(w.maxRegret) + '입니다.</li>' +
+        '<li>대기 중에도 부지·인허가·보조금 확약 등 착공 준비는 진행해 결정 후 지연을 줄입니다(준비 비용은 자료에 없어 모형 밖).</li>' +
+        (ur ? '<li>수요가 기준보다 빨리 늘면(성장률 ×' + fmt(ur.K, 2) + ') 데브레첸 지금 착공 ' + sgn(ur.now) + ', ' + (2027 + S.up.L) + '년 착공 ' + sgn(ur.late) + '으로 기다림의 비용은 ' + fmt(ur.costOfWaiting) + '입니다. 수요 둔화 때 피하는 손실(' + fmt(-deb.values.slow) + ')보다 ' + (ur.costOfWaiting < -deb.values.slow ? '작습니다' : '큽니다') + '.</li>' : '') + '</ul>') +
+      answer('ii', '오창과 브로츠와프의 역할', '<ul>' +
+        '<li>브로츠와프: 2035년 기준 미래 ' + fmt(wro(opsBase).prod, 1) + 'GWh 생산, 가동률 ' + pct(wro(opsBase).util, 0) + ', EU 고객 ' + fmt(wro(opsBase).region.EU, 1) + 'GWh. 유럽 공급의 중심을 유지합니다.</li>' +
+        '<li>오창: 2035년 기준 미래 EU ' + fmt(och(opsBase).region.EU, 1) + ' · 아시아 ' + fmt(och(opsBase).region.AS, 1) + ' · 중동 ' + fmt(och(opsBase).region.ME, 1) + 'GWh. 유럽 물량을 받아주는 스윙 공장에서 아시아·중동 중심 공장으로 역할이 옮겨갑니다.</li>' +
+        '<li>탄소발자국 상한 미래(권고안 적용): 브로츠와프 EU 공급 ' + fmt(wro(opsCap).region.EU, 1) + 'GWh, 가동률 ' + pct(wro(opsCap).util, 0) + '. 헤지가 없으면 유럽 공급 자격을 잃습니다.</li>' +
+        '<li>무투자 시 2035년 브로츠와프 능력 잠재가격 ' + fmt(wroDual, 2) + ' USD/kWh·년 vs 데브레첸 연간 자본비용 ' + fmt(cc.perKwhYear, 2) + '(순CAPEX × CRF 9%·' + cc.years + '년), 고정운영비 포함 ' + fmt(cc.perKwhYear + cc.fixedPerKwh, 2) + ' USD/kWh·년. 능력이 부족한 해에는 증설 가치가 있지만, 데브레첸이 가져오는 물량 상당수는 기존 공장 물량을 대체합니다.</li></ul>') +
+      answer('iii', '2035년 주요 고객별 공급 비중', '<p>기준 미래 권고안에서 EU 고객 수요 ' + fmt(euDemand, 1) + 'GWh 중 ' + fmt(euSupply, 1) + 'GWh(' + pct(euSupply / euDemand, 1) + ')를 공급합니다. 고객별 상한은 수요의 70%입니다.</p>' +
+        table(['EU 고객', '총수요 GWh', '한누리 공급', '수주율', '공장 구성'], top.map(function (o) { return [esc(o.name), fmt(o.demand, 1), fmt(o.supply, 1), pct(o.rate, 0), esc(o.mix.map(function (m) { return m.ko + ' ' + pct(m.share, 0); }).join(' · ') || '—')]; }), { num: [1, 2, 3] }) +
+        '<p class="note">기준 미래에서 이 정책이 실행하는 투자안: ' + esc(E.describePlan(M, w.plans.base)) + '. 전체 21개 고객과 다른 정책·미래는 ‘2035 운영’ 탭에서 볼 수 있습니다.</p>') +
+      answer('iv', '탄소 산정 규칙 변화에 대한 헤지', '<ul>' +
+        '<li>위치기반 상한이 도입되면 브로츠와프(위치기반 셀 ' + fmt(hW.locationCell, 1) + 'kg)는 PPA·GO가 인정되지 않아 2030년부터 EU 공급 자격을 잃습니다.</li>' +
+        '<li>위치기반에서도 인정되는 직접 연결 저탄소 전력을 전력 사용량의 <strong>' + pct(hW.need65, 1) + '(2030년, 65kg)</strong>, <strong>' + pct(hW.need60, 1) + '(2035년, 60kg)</strong> 확보하면 모든 EU 레인에서 자격을 유지합니다.</li>' +
+        '<li>상한 미래에서 ' + pct(hW.share, 0) + ' 확보의 가치는 신규 공장이 없을 때 ' + sgn(hW.gainAtZeroPremium) + ', 데브레첸을 지은 뒤에도 ' + sgn(hWD.gainAtZeroPremium) + ' USD million(전력 추가비용 0 기준)입니다. 같은 미래에서 데브레첸의 효과(' + sgn(deb.values.cap) + ')보다 훨씬 큽니다.</li>' +
+        '<li>손익분기 전력 프리미엄은 ' + (hW.breakEvenPremium ? fmt(hW.breakEvenPremium, 0) + ' USD/MWh' : '탐색 범위 밖') + '입니다. 직접 전력 공급 계약·부지 확보 옵션을 지금 마련하고, 위임법 확정 시 행사합니다.</li></ul>') +
+      answer('v', '점검 지표와 의사결정 전환 조건', '<ul>' +
+        '<li><strong>수요</strong>: 고객 수요(21개 OEM 같은 비율)가 기준 경로의 ' + demandLate + ' 미만이면 ' + R.learnYear + '년 말에 결정해 ' + (R.learnYear + 1) + '년에 착공해도 데브레첸 증분 NPV가 0 이하이므로 착공하지 않습니다(지금 착공의 기준은 ' + demandBE + ').</li>' +
+        '<li><strong>수요 둔화 확률</strong>: 둔화 확률이 ' + crossTxt + '를 넘으면 기대값으로도 ‘데브레첸 지금 착공 + 대응’보다 ‘대기 후 결정’이 유리(나머지 미래는 같은 확률).</li>' +
+        '<li><strong>탄소 규칙</strong>: 위치기반 상한 채택 → 브로츠와프 직접전력 확보 착수(2030년 ' + pct(hW.need65, 0) + ', 2035년 ' + pct(hW.need60, 0) + '), 데브레첸 착공. 헤지가 불가능하면 2번째 거점(사라고사 등) 검토.</li>' +
+        '<li><strong>데브레첸 조건</strong>: 가공비 상승 ' + (t.processing !== null ? '+' + pct(t.processing, 1) : '—') + ', CAPEX 초과 ' + (t.capex !== null ? '+' + pct(t.capex, 1) : '—') + ', 보조금 삭감 ' + (t.subsidyCut !== null ? pct(t.subsidyCut, 0) : '100%에도 양(+)') + ', 가동 지연 2년(' + sgn(t.permit[1].value) + ') 중 하나라도 넘으면 기준 미래 증분 NPV가 0 이하.</li>' +
+        '<li><strong>탄소가격</strong>: 기준 경로의 0.5~3배에서 데브레첸 증분 NPV ' + S.carbon.map(function (c) { return c.m + '배 ' + sgn(c.v); }).join(' · ') + '. 탄소가격만으로는 입지 결론이 바뀌지 않습니다.</li>' +
+        (S.up && S.up.kStarL ? '<li><strong>수요 상방</strong>: 수요 성장률이 기준의 약 ' + fmt(S.up.kStarL.K, 2) + '배를 넘으면(' + (2028) + '년 EU 확보 가능 물량이 기준 경로보다 약 ' + pct(S.up.kStarL.eu2028 / S.up.euBase[2028] - 1, 0) + ' 높음, 2035년 약 ' + fmt(S.up.kStarL.eu2035, 0) + 'GWh) 데브레첸과 함께 2번째 공장(' + esc(S.up.kStarL.second.ko) + ') 착공을 검토합니다.</li>' : '') +
+        '<li><strong>분기 점검</strong>: EU 수요 실적/기준 경로(내려가는 쪽과 올라가는 쪽 모두), 공장별 위치기반 탄소(kg/kWh) 대 상한, 브로츠와프 능력 잠재가격 대 신규 공장 자본비용, 데브레첸 견적·보조금 확약·인허가 단계.</li></ul>') +
+      '</div></div>';
+  }
+  function answer(k, title, body) { return '<div class="answer"><span class="k">(' + k + ')</span><div><h3>' + title + '</h3>' + body + '</div></div>'; }
+  function infoText(i) { return i === 'full' ? '정책·수요 모두 확인' : i === 'none' ? '새 정보 없음' : '정책 방향만 확인, 수요는 불확실'; }
+
+  /* ---------- 탭: 전략 최적화 ---------- */
+  function viewStrategy() {
+    var o = S.opt, R = S.R, w = winner();
+    var ctrl = '<div class="panel"><h2>결정 구조와 정보 가정</h2><div class="controls">' +
+      '<fieldset><legend>2단계 결정 시점</legend>' + radio('learn', 2027, o.learnYear === 2027, '2027년 말 결정 → 2028년 착공') + radio('learn', 2028, o.learnYear === 2028, '2028년 말 결정 → 2029년 착공 (사례 질문 5d)') + '</fieldset>' +
+      '<fieldset><legend>결정 시점까지 확인되는 정보</legend>' + radio('info', 'policy', o.info === 'policy', '정책 방향만(수요 둔화는 불확실)') + radio('info', 'full', o.info === 'full', '정책과 수요 모두') + radio('info', 'none', o.info === 'none', '새 정보 없음(대기 = 지연 확정)') + '</fieldset>' +
+      '<fieldset><legend>미래 집합</legend><label><input type="checkbox" id="fastinc" ' + (o.includeFast ? 'checked' : '') + '> 수요 가속 미래 포함(분석 확장)</label>' +
+      '<label>성장률 배수 <input type="number" id="fastk" min="1.05" max="3" step="0.05" value="' + o.fastK + '">배</label>' +
+      '<span class="small muted">사례의 다섯 미래 + 수요가 기준보다 빨리 느는 미래. 끄면 v3·제출본 v4와 같은 계산</span></fieldset>' +
+      '<fieldset><legend>대응 옵션</legend><label><input type="checkbox" id="second" ' + (o.secondSite ? 'checked' : '') + '> 착공 후 2번째 거점 추가 허용</label>' +
+      '<label><input type="checkbox" id="pairs" ' + (o.pairsAtL ? 'checked' : '') + '> 대기 후 공장 2곳 동시 착공 허용</label>' +
+      '<label><input type="checkbox" id="hedge" ' + (o.hedge.enabled ? 'checked' : '') + '> 브로츠와프 직접 저탄소 전력</label>' +
+      '<label>비율 <input type="number" id="hshare" min="5" max="80" step="1" value="' + Math.round(o.hedge.share * 100) + '">%</label>' +
+      '<label>추가 비용 <input type="number" id="hprem" min="0" max="2000" step="5" value="' + o.premium + '"> USD/MWh</label></fieldset>' +
+      '<fieldset><legend>미래별 확률(기대값·묶인 정보의 판단에 사용, 합 100으로 정규화)</legend><div class="probs">' +
+      activeSC().map(function (k) { return '<label>' + SCN[k] + ' <input type="number" min="0" max="100" step="1" id="p-' + k + '" value="' + o.probs[k] + '"></label>'; }).join('') + '</div></fieldset>' +
+      '</div><div class="row"><button class="btn" id="run" ' + (S.busy ? 'disabled' : '') + '>다시 계산</button>' +
+      '<label>순위 기준 <select id="crit"><option value="mr"' + (S.criterion === 'mr' ? ' selected' : '') + '>최대후회 최소</option><option value="ev"' + (S.criterion === 'ev' ? ' selected' : '') + '>기대값 최대</option></select></label>' +
+      '<span class="small muted num">' + (R && S.lastRun ? '이번 계산 투자안×미래 ' + fmt(S.lastRun.jobs) + '개 · 연도별 LP ' + fmt(S.lastRun.lps) + '개 · ' + fmt(S.runtime / 1000, 1) + '초' : '') + '</span></div>' +
+      '<p class="note">확률은 사례가 제공하지 않으므로 사용자의 판단입니다. 최대후회는 확률을 쓰지 않지만, 같은 정보집합에 묶인 미래(예: 기준·수요 둔화)에서 무엇을 할지 고를 때는 확률 비중을 씁니다.</p></div>';
+    if (!R) return ctrl;
+    var list = R.policies.slice().sort(S.criterion === 'ev' ? function (a, b) { return b.expected - a.expected; } : function (a, b) { return a.maxRegret - b.maxRegret || b.expected - a.expected; });
+    var scs = R.scenarios || activeSC();
+    var maxAbs = 0; list.forEach(function (p) { scs.forEach(function (k) { maxAbs = Math.max(maxAbs, Math.abs(p.values[k])); }); });
+    var rows = list.map(function (p, i) {
+      var label = '<strong>' + esc(p.label) + '</strong>' + (p.type !== 'static' ? '<span class="rule">' + esc(p.rule.map(function (r) { return r.set.map(function (s) { return SCN[s]; }).join('·') + '→' + r.action; }).join(' | ')) + '</span>' : '') +
+        ' ' + (p.type === 'wait' ? chip('대기', 'acc') : p.type === 'static' ? chip('고정', '') : chip('착공+대응', 'acc'));
+      return { hl: p.id === w.id, cells: [String(i + 1), { html: label }].concat(scs.map(function (k) { return heat(p.values[k], maxAbs); }), [{ html: sgn(p.expected), cls: cls(p.expected) }, { html: sgn(p.worst), cls: cls(p.worst) }, fmt(p.maxRegret)]) };
+    });
+    var hs = '<p class="small">사후 최선(그 미래를 미리 알았을 때): ' + scs.map(function (k) { return SCN[k] + ' ' + sgn(R.hindsight[k].value) + ' <span class="muted">(' + esc(R.hindsight[k].plan) + ')</span>'; }).join(' · ') + '</p>';
+    var rob = S.robust ? '<div class="section"><h2>정보 가정에 따른 권고의 강건성</h2>' + table(['결정 시점', '확인되는 정보', '최대후회 최소 정책', '최대후회', '기대값 1위 정책', '기대값'], S.robust.map(function (r) {
+      return { hl: r.learnYear === S.opt.learnYear && r.info === S.opt.info, cells: [r.learnYear + '년 말', infoText(r.info), esc(r.mr.label), fmt(r.mr.maxRegret), esc(r.ev.label), sgn(r.ev.expected)] }; }), { num: [3, 5] }) +
+      '<p class="note">‘새 정보 없음’이면 기다리는 것은 일정을 늦춰 확정하는 것과 같습니다(v1의 17개 대안 분석과 같은 결과). 정보가 생기면 대기 후 결정이 최대후회를 줄입니다. 수요 가속 미래를 넣으면 ‘정책만 확인’은 기준·둔화·가속을 구분하지 못하므로, 수요 방향을 알 수 있는지가 핵심입니다. 부분정보의 대응은 순위 기준에 맞춰 고릅니다(최대후회 기준이면 정보집합 안 최대후회 최소). 확률은 위에서 입력한 값입니다.</p></div>' : '';
+    return '<div class="stack">' + ctrl + rob + '<div class="section"><h2>정책 순위: ' + (S.criterion === 'mr' ? '최대후회 최소' : '기대값 최대') + '</h2>' + hs +
+      table(['#', '정책'].concat(scs.map(scLabel), ['기대값', '최악', '최대후회']), rows, { num: [0].concat(scs.map(function (_, i) { return i + 2; }), [scs.length + 2, scs.length + 3, scs.length + 4]) }) +
+      '<p class="note">증분 NPV, USD million, 2026년 가치, 같은 미래의 무투자 대비. 후회 = 그 미래의 사후 최선 − 해당 정책. ‘고정’은 v1·v2 방식(지금 정한 일정을 바꾸지 않음), ‘대기’와 ‘착공+대응’은 학습 후 행동을 바꾸는 실물옵션 정책입니다. ‘(최대후회 기준 대응)’은 묶인 정보집합에서 대응을 최대후회 최소로 고른 정책입니다(대응이 같으면 하나로 표시).</p></div></div>';
+  }
+  function radio(name, val, on, text) { return '<label><input type="radio" name="' + name + '" value="' + val + '" ' + (on ? 'checked' : '') + '> ' + text + '</label>'; }
+
+  /* ---------- 탭: 허용한계·트리거 ---------- */
+  function viewTolerance() {
+    var t = S.tol, ps = S.pscan;
+    var sel = '<label>후보지 <select id="tolsite">' + M.cands.map(function (k) { return '<option value="' + k + '"' + (k === S.tolSite ? ' selected' : '') + '>' + ko(k) + '</option>'; }).join('') + '</select></label>';
+    var neg = t.margin <= 0;
+    var rows = [
+      ['가공비 상승(인력·생태계 부담의 대리 변수)', t.processing !== null ? '+' + pct(t.processing, 2) : (neg ? '이미 음(−)' : '+50%에도 양(+)'), '가공비 원가에 곱함, 학습효과·재고비 연동'],
+      ['CAPEX 초과', t.capex !== null ? '+' + pct(t.capex, 1) : (neg ? '이미 음(−)' : '+150%에도 양(+)'), '투자비·감가상각·보조금 금액에 반영'],
+      ['보조금 삭감', t.subsidyCut !== null ? pct(t.subsidyCut, 1) : (neg ? '이미 음(−)' : '100% 삭감에도 ' + sgn(t.subsidyCutAll)), '보조금률 × (1 − 삭감률)'],
+      ['인허가·가동 지연(투자 집행은 예정대로)', t.permit.map(function (p) { return p.years + '년 ' + sgn(p.value + t.reference); }).join(' · '), '증분 NPV, 집행·보조금 일정 유지'],
+      ['수요 수준 — 지금 착공(기준 경로 대비, 전 OEM 동일 비율)', t.demand !== null ? pct(t.demand, 2) : '60~140% 범위 밖', '이 아래면 증분 NPV ≤ 0'],
+      ['수요 수준 — ' + S.R.learnYear + '년 말 결정 후 ' + (S.R.learnYear + 1) + '년 착공(같은 기준)', S.tolLate !== null ? pct(S.tolLate, 2) : '60~140% 범위 밖', '이 아래면 늦게 지어도 증분 NPV ≤ 0 → 착공하지 않음(이사회 신호등 기준)']
+    ];
+    var userRisk = '<div class="panel"><h3>직접 입력한 위험으로 다시 계산</h3><div class="row">' +
+      '<label>보조금 삭감 <input type="number" id="r-sub" min="0" max="100" value="' + S.risk.sub + '">%</label>' +
+      '<label>가동 지연 <input type="number" id="r-permit" min="0" max="5" step="1" value="' + S.risk.permit + '">년</label>' +
+      '<label>가공비 <input type="number" id="r-proc" min="0" max="50" value="' + S.risk.proc + '">%</label>' +
+      '<label>CAPEX <input type="number" id="r-capex" min="0" max="150" value="' + S.risk.capex + '">%</label>' +
+      '<button class="btn ghost" id="risk-run">' + ko(S.tolSite) + ' 다시 계산</button></div>' +
+      (S.riskOut ? table(['미래', '위험 전', '위험 후', '변화'], S.riskOut.map(function (r) { return [SCN[r.sc], { html: sgn(r.before), cls: cls(r.before) }, { html: sgn(r.after), cls: cls(r.after) }, sgn(r.after - r.before)]; }), { num: [1, 2, 3] }) : '<p class="small muted">입력한 값은 사용자의 가정입니다. 자료 12는 정성 평가만 제공합니다.</p>') + '</div>';
+    var pr = ps ? table(['수요 둔화 확률', '기대값 1위 정책'], ps.ranges.map(function (r) { return [r.from === r.to ? r.from + '%' : r.from + '~' + r.to + '%', esc(r.label)]; }), { num: [0] }) : '';
+    return '<div class="stack"><div class="section"><h2>결론이 뒤집히는 위험 크기</h2>' +
+      '<p>v2처럼 후보지마다 임의의 예시 위험을 넣는 대신, 기준 미래에서 증분 NPV가 0이 되는 지점을 재최적화로 찾습니다. 이 값이 실사·협상에서 확인해야 할 조건입니다.</p>' +
+      '<div class="row">' + sel + '<span class="small num">기준 미래 증분 NPV ' + sgn(t.margin) + ' USD million</span></div>' +
+      table(['위험', '허용한계', '적용 방식'], rows, { num: [] }) + '</div>' + userRisk +
+      upsideSection() +
+      '<div class="section"><h2>수요 둔화 확률에 따른 기대값 1위</h2><p class="small">나머지 미래는 같은 확률로 둡니다. 현재 정보 가정: ' + infoText(S.opt.info) + ', 결정 ' + S.opt.learnYear + '년.' +
+      (ps && ps.crossDebVsWait !== null ? ' ‘데브레첸 지금 착공 + 대응’과 ‘대기 후 결정’의 기대값은 둔화 확률 약 <strong>' + fmt(ps.crossDebVsWait, 1) + '%</strong>에서 같아집니다.' : '') + '</p>' + pr + '</div></div>';
+  }
+
+  function upsideSection() {
+    var u = S.up; if (!u) return '';
+    var rows = u.rows.map(function (r) {
+      return ['×' + fmt(r.K, 2), fmt(r.eu2035, 1), { html: sgn(r.now), cls: cls(r.now) }, { html: sgn(r.late), cls: cls(r.late) }, fmt(r.costOfWaiting), esc(r.second.ko) + ' ' + sgn(r.secondGain)];
+    });
+    var lv = u.level.map(function (l) { return ['+' + pct(l.m - 1, 0), { html: sgn(l.now), cls: cls(l.now) }, { html: sgn(l.late), cls: cls(l.late) }, fmt(l.costOfWaiting)]; });
+    var k = u.kStarL;
+    return '<div class="section"><h2>수요가 더 늘면(상방)</h2>' +
+      '<p>사례의 다섯 미래에는 수요가 기준보다 빨리 느는 경우가 없습니다. 수요 둔화(성장률 ×0.5)와 대칭으로 성장률을 키워 데브레첸과 2번째 공장의 가치를 다시 계산합니다(수요 가속 미래, 분석 확장).</p>' +
+      table(['성장률 배수', '2035 EU 확보 가능 GWh', '데브레첸 지금 착공', (2027 + u.L) + '년 착공', '기다림의 비용', '2번째 공장 추가 효과'], rows, { num: [1, 2, 3, 4] }) +
+      '<p class="note">기준 경로의 2035 EU 확보 가능 물량은 ' + fmt(u.euBase[2035], 1) + 'GWh입니다. ‘2번째 공장 추가 효과’는 데브레첸 지금 착공에 최선의 2번째 공장(' + (2027 + u.L) + '년 착공)을 더할 때의 증분입니다.</p>' +
+      (k ? '<div class="kpis">' + kpi('×' + fmt(k.K, 2), '2번째 공장이 이익이 되는 성장률 배수(데브레첸과 ' + (2027 + u.L) + '년 동시 착공)') +
+        kpi('+' + pct(k.eu2028 / u.euBase[2028] - 1, 0), '그 경로에서 2028년 EU 확보 가능 물량의 기준 대비 차이') + kpi(fmt(k.eu2035, 0) + 'GWh', '그 경로의 2035년 EU 확보 가능 물량') + kpi(esc(k.second.ko), '최선의 2번째 공장') + '</div>' : '') +
+      '<h3>수요 수준이 높을 때(전 OEM 동일 비율, 기준 미래)</h3>' + table(['수요 수준', '데브레첸 지금 착공', (2027 + u.L) + '년 착공', '기다림의 비용'], lv, { num: [1, 2, 3] }) +
+      '<p class="note">기다림의 비용(늦게 지어 덜 버는 돈)은 수요가 클수록 커지지만, 수요 둔화 때 피하는 손실보다 작으면 ‘확인 후 결정’의 최대후회 우위는 유지됩니다. 전략 최적화 탭에서 수요 가속 배수를 바꿔 다시 계산할 수 있습니다.</p></div>';
+  }
+
+  /* ---------- 탭: 탄소 상한 헤지 ---------- */
+  function viewHedge() {
+    var h = S.hedgeW, hd = S.hedgeWD, ho = S.hedgeO, wf = M.fac[WRO];
+    var twh = h.share * 90 * 38.8 / 1000;
+    return '<div class="stack"><div class="section"><h2>브로츠와프의 위치기반 탄소 헤지</h2>' +
+      '<p>탄소발자국 상한 미래에서는 PPA·GO가 인정되지 않습니다. 브로츠와프의 위치기반 셀 배출은 시장기반 ' + fmt(h.marketCell, 2) + 'kg에 38.8kWh × 전력망 ' + fmt(wf.grid, 2) + ' × 재생비중 ' + pct(wf.re, 0) + '를 더한 ' + fmt(h.locationCell, 2) + 'kg입니다. 직접 연결 발전처럼 위치기반에서도 인정되는 무탄소 전력 비율 s만큼 38.8 × ' + fmt(wf.grid, 2) + ' × s를 줄입니다.</p>' +
+      '<div class="kpis">' + kpi(pct(h.need65, 1), '2030년 65kg 충족에 필요한 비율(모든 EU 레인)') + kpi(pct(h.need60, 1), '2035년 60kg 충족에 필요한 비율') +
+      kpi(sgn(h.gainAtZeroPremium), '상한 미래 가치, ' + pct(h.share, 0) + ' 확보, 무투자 기준 USD million') + kpi(sgn(hd.gainAtZeroPremium), '같은 헤지, 데브레첸 착공과 병행 시') +
+      kpi(h.breakEvenPremium ? fmt(h.breakEvenPremium, 0) : '—', '손익분기 전력 프리미엄 USD/MWh') + kpi(fmt(twh, 2), pct(h.share, 0) + ' 물량, TWh/년(90GWh 기준)') + '</div>' +
+      table(['EU 고객', '운송 배출 kg', '위치기반 셀+운송 kg', '2030 65kg 필요', '2035 60kg 필요'], h.lanes.map(function (l) { return [esc(l.name), fmt(l.tc, 3), fmt(l.loc, 2), pct(l.need65, 1), pct(l.need60, 1)]; }), { num: [1, 2, 3, 4] }) +
+      '<p class="note warn">직접 연결 전력이 위치기반 산정에서 인정될지는 위임법 최종안에 달려 있습니다. 비용(프리미엄)은 사례 자료에 없으므로 손익분기로 제시합니다. 프리미엄은 헤지 물량 MWh당 전력단가 추가분입니다.</p></div>' +
+      '<div class="section"><h2>오창</h2><p>오창의 위치기반 셀+운송은 VW 레인 기준 약 ' + fmt(ho.lanes[0].loc, 1) + 'kg으로 2030~2034년 65kg은 통과하지만 2035년 60kg은 넘습니다. 모든 EU 레인 충족에는 ' + pct(ho.need60, 1) + '가 필요합니다. 브로츠와프가 헤지 없이 EU 자격을 잃는 상한 미래에서는 오창이 유럽 고객을 맡을 수 있는 거의 유일한 기존 공장이 되므로, 오창 20% 확보의 가치도 ' + sgn(ho.gainAtZeroPremium) + ' USD million으로 큽니다(전력 추가비용 0 기준).</p></div></div>';
+  }
+  function kpi(v, l) { return '<div class="kpi"><span class="v">' + v + '</span><span class="l">' + l + '</span></div>'; }
+
+  /* ---------- 탭: 2035 운영 ---------- */
+  function viewOps() {
+    var R = S.R, p = policy(S.opsPolicy) || winner();
+    if (!p.plans[S.opsSc]) S.opsSc = 'base';  // 미래 집합에서 빠진 미래가 선택돼 있던 경우
+    var plan = p.plans[S.opsSc], o = E.operations(M, plan, S.opsSc, engineOpt().cfg);
+    var sel = '<div class="row"><label>정책 <select id="opspol">' + R.policies.map(function (x) { return '<option value="' + x.id + '"' + (x.id === p.id ? ' selected' : '') + '>' + esc(x.label) + '</option>'; }).join('') + '</select></label>' +
+      '<label>미래 <select id="opssc">' + activeSC().map(function (k) { return '<option value="' + k + '"' + (k === S.opsSc ? ' selected' : '') + '>' + SCN[k] + '</option>'; }).join('') + '</select></label></div>' +
+      '<p class="small">이 미래에서 실행되는 투자안: <strong>' + esc(E.describePlan(M, plan)) + '</strong></p>';
+    var plants = table(['공장', '능력 GWh', '생산', '가동률', 'EU', '아시아', '중동', '남미', '능력 잠재가격 USD/kWh', 'EBITDA'], o.plants.map(function (x) {
+      return [esc(x.ko), fmt(x.cap, 1), fmt(x.prod, 1), pct(x.util, 0), fmt(x.region.EU, 1), fmt(x.region.AS, 1), fmt(x.region.ME, 1), fmt(x.region.SA, 1), x.dual === null ? '—' : fmt(x.dual, 2), sgn(x.ebitda)]; }), { num: [1, 2, 3, 4, 5, 6, 7, 8, 9] });
+    var oems = table(['OEM 거점', '지역', '총수요 GWh', '한누리 공급', '수주율(≤70%)', '공급 공장 구성(합 100%)'], o.oems.map(function (x) {
+      return [esc(x.name), x.region, fmt(x.demand, 1), fmt(x.supply, 1), pct(x.rate, 0), esc(x.mix.map(function (m) { return m.ko + ' ' + fmt(m.gwh, 1) + ' (' + pct(m.share, 0) + ')'; }).join(' · ') || '—')]; }), { num: [2, 3, 4] });
+    return '<div class="stack"><div class="section"><h2>2035년 공장 역할</h2>' + sel + plants +
+      '<p class="note">능력 잠재가격은 그 해 LP에서 공장 능력 1GWh를 늘릴 때 세전 공헌이익 증가(USD million/GWh = USD/kWh)입니다. 신규 공장의 연간 자본비용(데브레첸 ' + fmt(E.capitalCost(M, DEB).perKwhYear, 2) + ' USD/kWh·년)과 비교합니다.</p></div>' +
+      '<div class="section"><h2>2035년 고객별 공급</h2>' + oems + '<p class="note">수주율 분모는 OEM 거점 총수요, 공장 구성 분모는 한누리 공급량입니다. 미수주 30% 이상은 경쟁사 몫이며 결손이 아닙니다.</p></div></div>';
+  }
+
+  /* ---------- 탭: 검토·검증 ---------- */
+  function viewVerify() {
+    var v = S.val, groups = {};
+    v.rows.forEach(function (r) { (groups[r.group] = groups[r.group] || []).push(r); });
+    var summary = Object.keys(groups).map(function (g) { var rs = groups[g]; return [g, rs.filter(function (r) { return r.ok; }).length + ' / ' + rs.length, Math.max.apply(null, rs.map(function (r) { return Math.abs(r.got - r.ref); })).toFixed(3)]; });
+    var inc = groups['자료 14 증분 NPV'] || [];
+    var cc = VER ? VER.crossCheck : null;
+    return '<div class="stack"><div class="section"><h2>기존 v1·v2·v3 프로그램 검토와 최종 수정</h2>' + findings() + '</div>' +
+      '<div class="section"><h2>이 프로그램의 실행 중 검증</h2><div class="kpis">' +
+      kpi(v.passed + ' / ' + v.total, '사례 인쇄값 재현(자료 11·13·14)') + kpi(fmt(v.lp.count), '이번 세션에서 푼 연도별 LP') +
+      kpi(v.lp.worst.gap.toExponential(1), '최대 강쌍대성 gap(최적성 증명)') + kpi(String(v.constraintViolations), '능력·70%·탄소 적격성 위반') + '</div>' +
+      table(['검증 묶음', '일치', '최대 |차이|'], summary, { num: [1, 2] }) +
+      '<p class="note">자료 11은 소수 둘째 자리, 자료 13·14는 백만 달러 정수 반올림 일치를 봅니다. LP마다 쌍대해를 만들어 원문제 목적값과 같은지(강쌍대성)와 쌍대 실행가능성을 확인합니다.</p></div>' +
+      (cc ? '<div class="section"><h2>독립 구현 교차검증 (빌드 시점)</h2><p>Python + HiGHS로 Excel을 직접 읽는 별도 구현(tools/reference_model.py)과 이 엔진을 정책 공간 전체에서 비교했습니다.</p><div class="kpis">' +
+        kpi(fmt(cc.yearlyLPs), '비교한 연도별 LP') + kpi(Number(cc.maxLpObjectiveDiff).toExponential(1), 'LP 최적값 최대 차이') + kpi(cc.npvExactMatches + ' / ' + cc.plans, '증분 NPV 완전 일치(&lt;1e-6)') + kpi(fmt(cc.maxNpvDiffUsdMillion, 2), '동률 최적해 최대 NPV 차이') + '</div>' +
+        '<p class="note">불일치 ' + cc.alternativeOptimaTies.length + '건은 모두 기존 브로츠와프와 브로츠와프 증설을 함께 쓰는 조합입니다. 같은 부지라 레인 비용이 같아 세전 최적 배정이 여러 개이고, 어느 공장에 물량을 둘지에 따라 공장별 세금이 달라집니다. 이 조합은 어떤 기준에서도 상위 정책이 아니어서 결론에 영향이 없습니다. 검증 시각 ' + esc(VER.checkedAt) + '.</p></div>' : '') +
+      '<details class="panel"><summary>자료 14 증분 NPV 40개 상세</summary>' + table(['후보 / 미래', '자료 14', '계산', '일치'], inc.map(function (r) { return [esc(r.item), sgn(r.ref), sgn(r.got, 2), r.ok ? chip('일치', 'pos') : chip('차이', 'neg')]; }), { num: [1, 2] }) + '</details></div>';
+  }
+  function findings() {
+    var F = [
+      ['pos', '정확', '데이터·원가·탄소·재무 엔진', 'Excel 5개 시트(지문 5b0f7bd1ea71), 단위 변환, 자료 11 도착원가(86.40·86.24), 자료 13 단독 NPV 8개, 자료 14 무투자 5개·증분 40개를 독립 구현 두 개(Python+HiGHS, 이 엔진)로 재현했습니다. v1·v2 값과 소수 둘째 자리까지 같습니다. 브로츠와프 2027년 88GWh 보간 해석도 재현으로 뒷받침됩니다.'],
+      ['pos', '정확', '배포본 = 소스', '두 공개 사이트의 engine.js·data.json·app.js 등이 로컬 소스와 SHA-256 단위로 같고, 공개 사이트의 엔진을 브라우저에서 직접 실행해도 같은 값이 나옵니다.'],
+      ['neg', '수정', '기다림의 가치를 계산하지 않음', '사례 질문 5(d)와 CFO 발언은 2028년까지 위임법·IAA·헝가리 정책이 확인된다는 전제에서 지금 확정과 결정 유예를 비교하라고 합니다. v1은 ‘지금 2년 늦춘 일정으로 확정’(학습 없음)만 비교했고 v2는 이를 계산하지 않았다고 명시했습니다. 학습 후 결정을 넣으면 순위가 달라집니다(전략 최적화 탭).'],
+      ['neg', '수정', 'v2 결론이 임의 예시값에 좌우됨', 'v2의 ‘무투자/집행 보류’는 분석자가 정한 예시값에서 나왔습니다. 데브레첸에만 보조금 −50%·1년 지연·가공비 +10%를 모두 주고, 다른 후보는 일부만, 오스트라바·브로츠와프 증설은 0으로 두었습니다. 입력을 어떻게 정하느냐가 순위를 정합니다. v3는 결론이 뒤집히는 허용한계를 계산합니다(데브레첸 가공비 약 +4.9%, CAPEX 약 +9.9%).'],
+      ['neg', '수정', '탄소 헤지의 가치를 평가하지 않음', 'v1은 VW 레인 하나의 필요 저탄소 전력 비율만 표시했습니다. 모든 EU 레인 기준 필요 비율과, 상한 미래에서 그 헤지의 NPV(신규 공장보다 훨씬 큼)를 비교해야 질문 3·권고 (iv)에 답할 수 있습니다.'],
+      ['warn', '보완', '2번째 거점과 정량 트리거', '사례 표는 신규 공장 1곳 추가를 계산했을 뿐 제약은 아닙니다. 상한 미래에서는 데브레첸 + 사라고사(2029) 조합이 단일 최선보다 큽니다. v2는 정량 트리거를 산정하지 않았습니다. v3는 수요·비용·확률 전환점을 계산합니다.'],
+      ['warn', '보완', '동률 최적 배정', '사례의 세전 공헌이익 배정 규칙은 같은 부지 두 공장(기존 브로츠와프+증설)의 물량 분할을 정하지 못해 세후 NPV가 최대 약 1.3백만 달러 달라질 수 있습니다. 결론에는 영향이 없고 검증에서 별도로 표시합니다.'],
+      ['warn', '보완', '실행 환경', 'v1·v2는 HiGHS WASM 때문에 로컬 웹서버가 필요합니다. v3는 자체 simplex(최적성 증명 포함)로 단일 HTML 파일을 더블클릭해 실행됩니다.'],
+      ['neg', '최종 수정', '수요 상방 미래가 없음', '사례의 다섯 미래 중 수요 시나리오는 둔화뿐이었습니다. 최종 버전은 수요 둔화(성장률 ×0.5)와 대칭인 ‘수요 가속’(성장률 ×K, 기본 1.5) 미래를 넣고, 2번째 공장이 이익이 되는 성장률 배수(수요 상방 전환점)를 계산합니다. 끄면 v3와 같은 결과입니다.'],
+      ['neg', '최종 수정', '부분정보 대응을 기대값으로만 선택', 'v3는 정보집합에 미래가 여러 개 묶일 때 대응을 조건부 기대값으로 고른 뒤 최대후회로 순위를 매겼습니다. 최종 버전은 최대후회 기준이면 정보집합 안의 최대후회를 직접 최소화합니다(정보집합별 분해가 정확). 각 20%의 다섯 미래에서는 결과가 같고, 확률이 치우치거나 수요 가속을 넣은 ‘정책만 확인’에서 달라집니다.'],
+      ['warn', '최종 보완', '결정 시점의 공장 수', 'v3의 대기 정책은 결정 시점에 공장 1곳만 착공할 수 있었습니다. 최종 버전은 2곳 동시 착공을 선택으로 제공합니다(기본 꺼짐: 제출본 수치와 같게 유지).']
+    ];
+    return '<div class="panel">' + F.map(function (f) { return '<div class="finding">' + chip(f[1], f[0]) + '<div><h3>' + f[2] + '</h3><p class="small">' + f[3] + '</p></div></div>'; }).join('') + '</div>';
+  }
+
+  /* ---------- 탭: 모형 정의 ---------- */
+  function viewModel() {
+    return '<div class="stack"><div class="section"><h2>두 단계 의사결정 모형</h2>' +
+      '<pre class="formula">집합   I 공장(기존 2 + 선택 후보), J OEM 21, T 2026..2045, S 미래 6(사례 5 + 수요 가속), K 후보 8\n' +
+      '1단계  a ∈ {대기} ∪ K           2026.12 이사회: 즉시 착공(CAPEX 2027~) 여부\n' +
+      '2단계  b(I_s) ∈ {없음, k′@L, 헤지, 헤지+k′@L (, k′+k″@L)}   L년 말 정보집합 I_s를 보고 선택(CAPEX L+1~)\n' +
+      '배정   x_ijts ≥ 0  (GWh)  매년·매 미래 LP:\n' +
+      '       max Σ_ij (p_jt − c_ijt) x_ijt\n' +
+      '       s.t. Σ_j x_ijt ≤ Cap_it(a,b)          공장 능력·램프업·가동 전 0\n' +
+      '            Σ_i x_ijt ≤ 0.70 · D_jt          OEM별 한누리 수주 상한\n' +
+      '            x_ijt = 0  (상한 미래 EU 레인 위치기반 셀+운송 > 65/60kg)\n' +
+      '현금흐름 CF_it = (Σ_j m_ijt x_ijt − F_it) − max(0, τ_i(EBITDA_it − Dep_it)) − CAPEX_it + 보조금_it\n' +
+      '평가    V(a,b,s) = Σ_t Σ_i CF_its/(1.09)^(t−2026) − V(무투자, s)\n' +
+      '정책값  π(a,s) = V(a, b*(I_s), s)\n' +
+      '        기대값 기준 b*(I) = argmax_b Σ_{s∈I} P_s V(a,b,s)\n' +
+      '        최대후회 기준 b*(I) = argmin_b max_{s∈I} [H_s − V(a,b,s)],  H_s = max_{a′,b′} V(a′,b′,s)\n' +
+      '기준    기대값 Σ_s P_s π(a,s)  |  최대후회 max_s [H_s − π(a,s)]\n' +
+      '수요    D_jts = D_j0 (1+k_s g1_j)^min(t,4) (1+k_s g2_j)^max(0,t−4),  k = 0.5(둔화) · K(가속) · 1(그 외)</pre>' +
+      '<p>투자 결정은 이산 공간(대기·후보 8곳 × 2단계 행동: 대기 9개·착공 후 8개, 직접전력 포함 시 18·16개, 2곳 동시 착공 허용 시 최대 74개, 고정 일정 정책 포함)을 <strong>완전열거</strong>하므로 주어진 기준에 대해 전역 최적입니다. 배정은 연도별 LP를 자체 simplex로 풀고 쌍대해로 최적성을 확인합니다. 연도 사이 재고·결손 이월이 없어 연도별 분해가 정확합니다.</p></div>' +
+      '<div class="section"><h2>사례 규칙(자료 6~10·14, 그대로 유지)</h2><pre class="formula">소재비 50 × 추세_t / 수율   추세: 2030년까지 −1.5%/년, 이후 −0.5%/년 (판매가 동일)\n' +
+      '가공비 가공비_i × (1−1%)^min(t−2026, 9)       전력비 38.8 × 전력단가_i\n' +
+      '운송·하역 레인 원자료(하역 포함)               관세 판매가 × 관세율\n' +
+      '재고비 12% × (리드타임+7)/365 × (소재비+가공비)\n' +
+      'CBAM 한국→EU: 내재배출 × 25%(고탄소 2030~ 100%) × 탄소가격 × 1.10/1000\n' +
+      '고탄소 EU 판매가 −(시장기반 셀+운송 − 50) × 탄소가격 × 1.10/1000\n' +
+      '위치기반 셀 = 시장기반 + 38.8 × 전력망계수 × 재생비중 (− 38.8 × 전력망계수 × 직접전력 비율)\n' +
+      '역내 요건 2030~ 한국→EU +6 USD/kWh      수요 둔화 성장률 × 0.5   수요 가속(분석 확장) 성장률 × K\n' +
+      '고정비 +1.5%/년, 신규는 램프 비율(최소 60%)   감가상각 순CAPEX/10년(가동 첫해부터)\n' +
+      '세금 공장별 max(0, 세율 × (EBITDA − 감가상각))   WACC 9%, 2026년 t=0, 잔존가치 0\n' +
+      '기존 브로츠와프 86 → 88 → 90GWh (2026 → 2027 → 2028~)</pre></div>' +
+      '<div class="section"><h2>해석의 경계</h2><p class="note">2단계 정보 가정은 사례(CFO 발언·질문 5d)의 전제를 모형화한 것이며, 결정 시점에 어떤 미래인지 완전히 안다는 가정과 수요는 모른다는 가정을 모두 제공합니다. 대기 기간의 준비 비용, 직접 전력 헤지의 실제 비용, 후보지 정성 위험은 자료에 수치가 없어 손익분기로 제시합니다. 수요 가속 미래는 사례에 없는 분석 확장이며, 여섯 미래 밖의 위험은 다루지 않습니다.</p></div></div>';
+  }
+
+  /* ---------- 렌더링 ---------- */
+  function renderStatus() {
+    var el = document.getElementById('status'); if (!el) return;
+    el.className = 'status ' + (S.error ? 'err' : S.busy ? '' : S.R ? 'ok' : '');
+    document.getElementById('status-text').textContent = S.error ? '오류: ' + S.error : S.busy ? '계산 중' : S.R ? '최적화 완료 · 사례 재현 ' + S.val.passed + '/' + S.val.total : '대기';
+  }
+  function render() {
+    var nav = document.getElementById('tabs');
+    nav.innerHTML = TABS.map(function (t) { return '<button role="tab" data-tab="' + t[0] + '" aria-selected="' + (S.tab === t[0]) + '">' + t[1] + '</button>'; }).join('');
+    var v = document.getElementById('view');
+    if (S.error) { v.innerHTML = '<div class="panel"><h2>계산을 마치지 못했습니다</h2><p>' + esc(S.error) + '</p><p class="small">입력값을 확인한 뒤 ‘전략 최적화’ 탭에서 다시 계산하세요.</p></div>'; return; }
+    if (!S.R || !S.val) { v.innerHTML = S.tab === 'strategy' ? viewStrategy() : '<div class="panel"><h2>20년 공급망을 최적화하는 중입니다</h2><p>기본 설정에서 투자안×미래 486개의 연도별 공급배정 LP 9,720개를 풀고, 이어서 허용한계·강건성을 계산합니다. 보통 10~20초 걸립니다.</p></div>'; return; }
+    v.innerHTML = { answer: viewAnswer, strategy: viewStrategy, tolerance: viewTolerance, hedge: viewHedge, ops: viewOps, verify: viewVerify, model: viewModel }[S.tab]();
+  }
+  function readControls() {
+    var g = function (id) { return document.getElementById(id); };
+    var learn = document.querySelector('input[name="learn"]:checked'), info = document.querySelector('input[name="info"]:checked');
+    if (learn) S.opt.learnYear = +learn.value; if (info) S.opt.info = info.value;
+    if (g('second')) S.opt.secondSite = g('second').checked;
+    if (g('pairs')) S.opt.pairsAtL = g('pairs').checked;
+    if (g('fastinc')) S.opt.includeFast = g('fastinc').checked;
+    if (g('fastk')) S.opt.fastK = Math.min(3, Math.max(1.05, +g('fastk').value || 1.5));
+    if (g('hedge')) S.opt.hedge.enabled = g('hedge').checked;
+    if (g('hshare')) S.opt.hedge.share = Math.min(0.8, Math.max(0.05, (+g('hshare').value || 35) / 100));
+    if (g('hprem')) S.opt.premium = Math.max(0, +g('hprem').value || 0);
+    E.SC_IDS.forEach(function (k) { var el = g('p-' + k); if (el) S.opt.probs[k] = Math.max(0, +el.value || 0); });
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-tab]');
+    if (t) { S.tab = t.getAttribute('data-tab'); try { localStorage.setItem('hanuri-final-tab', S.tab); } catch (x) { /* 무시 */ } render(); return; }
+    if (e.target.id === 'run') {
+      readControls();
+      var sum = activeSC().reduce(function (a, k) { return a + S.opt.probs[k]; }, 0);
+      if (!(sum > 0)) { S.error = '미래별 확률의 합이 0입니다. 하나 이상에 양수를 넣으세요.'; render(); S.error = null; return; }
+      recompute(); return;
+    }
+    if (e.target.id === 'risk-run') {
+      var g = function (id) { return Math.max(0, +document.getElementById(id).value || 0); };
+      S.risk = { sub: Math.min(100, g('r-sub')), permit: Math.min(5, Math.round(g('r-permit'))), proc: Math.min(50, g('r-proc')), capex: Math.min(150, g('r-capex')) };
+      applyRisk();
+    }
+  });
+  document.addEventListener('change', function (e) {
+    if (e.target.id === 'crit') { S.criterion = e.target.value; S.opsPolicy = winner().id; render(); }
+    if (e.target.id === 'tolsite') { S.tolSite = e.target.value; S.riskOut = null; S.tol = E.tolerance(M, S.tolSite, 0, 'base', engineOpt().cfg, 0); S.tolLate = S.tolSite === DEB ? S.demLate : demandBreakeven(S.tolSite); render(); }
+    if (e.target.id === 'opspol') { S.opsPolicy = e.target.value; render(); }
+    if (e.target.id === 'opssc') { S.opsSc = e.target.value; render(); }
+  });
+  document.getElementById('meta').textContent = 'DATA ' + HANURI_DATA.meta.fingerprint + ' · ENGINE ' + E.VERSION + ' · 화면 ' + APP_VERSION + ' · 원자료 ' + HANURI_DATA.meta.sourceFile;
+  window.__hanuri = { S: S, render: render, recompute: recompute };
+  render(); recompute();
+})();
+
+</script>
+
+</body>
+</html>
